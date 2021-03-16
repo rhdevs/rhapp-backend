@@ -1,5 +1,5 @@
 from flask import Flask
-from LaundryAPI import laundry_api
+from Laundry.LaundryAPI import laundry_api
 
 app = Flask(__name__)
 
