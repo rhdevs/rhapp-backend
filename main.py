@@ -10,4 +10,4 @@ def hello():
     return "hello backend"
 
 if __name__ == "__main__":
-    app.run()
+    app.run('0.0.0.0', 8080)
