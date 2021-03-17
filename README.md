@@ -7,7 +7,7 @@ RHApp backend uses **MongoDB** to as the database, and **Flask** as the API Serv
 
 <code>pip install -r requirements.txt</code>
 
-For **MongoDB** development, it is also suggested to install **MongoDB Compass** which is the GUI that helps to interact with the database much easier. 
+For **MongoDB** development, it is also suggested to install **MongoDB Compass** which is the GUI that helps to interact with the database much easier. Moreover, please test each endpoint using **postman** before you deploy it and adhere to the github/restful practices !
 
 # Middleware 
 RHApp middleware acts as an intermediary between the front-end code that runs on local host and the server. Because the hosting server most likely is hosted using http, there would be a CORS problem if the front-end code is run directly from local-host and tries to fetch the data from the Repl.it data directly. 
@@ -30,6 +30,8 @@ The current Project Structure is : <br/>
  
 <code>python main.py</code>
 
+And each folder is a feature for **rhapp.lol**.
+
 # RESTFUL practice 
 
 Current standardization is to put  **<domain>/v1/<endpoint>**, for more specific restful practice, please read some articles online such as https://www.vinaysahni.com/best-practices-for-a-pragmatic-restful-api which is a pretty good resource. 
@@ -38,9 +40,9 @@ Some general pointer :
 1. Use Noun instead of Verb
 2. All resources should be put under the same noun, and what action to be done should be differentiated by the API method, for eg. /users should have PUT, DELETE, GET, etc
 3. For collection, use plural instead of singular such as users instead of user 
-4. For API, incoming body message and URL parameters should be get from **request** and returned in form of JSON using **response**, 
-Response for successful message should have the keys => "status" : "sucesssful", "data"
-Response for failed message should have the keys => "status" : "failed", "err" : "<error message>"
+4. For API, incoming body message and URL parameters should be get from **request** and returned in form of JSON using **response**, <br/>
+Response for successful message should have the keys => "status" : "sucesssful", "data"<br/>
+Response for failed message should have the keys => "status" : "failed", "err" : "<error message>"<br/>
 Return the response type as specific as possible
 5. Use **make_response** and **jsonify** from flask to return
 6. For other files except the main.py, use blueprint (please refer to existing file such as LaundryAPI.py)
