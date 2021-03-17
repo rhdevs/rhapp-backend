@@ -30,7 +30,7 @@ The current Project Structure is : <br/>
  
 <code>python main.py</code>
 
-And each folder is a feature for the [app](rhapp.lol).
+And each folder is a feature for the [app](https://rhapp.lol).
 
 # RESTFUL practice 
 
