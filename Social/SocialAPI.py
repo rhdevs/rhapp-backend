@@ -41,8 +41,6 @@ def renamePost(post):
 def hello():
     return "Welcome the Raffles Hall Social server"
 
-# TODO merge User and Profile in database !!!!!
-
 
 @app.route('/profile')
 @cross_origin(supports_credentials=True)
@@ -202,7 +200,6 @@ def addDeleteUser():
 @cross_origin(supports_credentials=True)
 def getUserDetails(userID):
     # TODO Use mongDB's lookup to join the tables instead
-    # TODO edit to match merged user and profiles tables
     try:
         data1 = db.User.find_one({"userID": userID}, {
                                  "passwordHash": 0, "_id": 0})
