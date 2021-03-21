@@ -51,7 +51,7 @@ Return the response type as specific as possible
 **Return Format** Example
 ```
 response = {status:"success", data: {facilities: []}}
-response = {err: "Error message here", status="failed"}
+response = {err: "Error message here", status:"failed"}
 
 POST/EDIT/DELETE
 response = {status:"success"}
