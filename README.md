@@ -91,3 +91,6 @@ In general, the flow of the work would be
    
 # Deployment
 Currently, we are using Repl.it, where you can just git pull using the version control feature from the repl.it, **do not modify the code directly from repl.it**, please use github and ask for review.
+
+# Important
+Please ask the DB Username, password and API_key from your BE Head !
