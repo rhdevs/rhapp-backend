@@ -232,24 +232,11 @@ def userIDtoName(userID):
     return name
 
 
-@app.route("/post", methods=['GET', 'DELETE', 'POST'])
+@app.route("/post", methods=['DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def addDeletePost():
     try:
-        if request.method == "GET":
-            # get last 5 most recent
-            data = db.Posts.find()
-
-            response = []
-            for item in data:
-                # add name into the every data using display name
-                item['name'] = userIDtoName(item.get('userID'))
-                item = renamePost(item)
-                response.append(item)
-
-            return json.dumps(response, default=lambda o: str(o)), 200
-
-        elif request.method == "POST":
+        if request.method == "POST":
             data = request.get_json()
             userID = str(data.get('userID'))
             title = str(data.get('title'))
@@ -319,7 +306,7 @@ def getPostSpecific():
         return {"err": str(e)}, 400
 
 
-@app.route("/post/all", methods=['GET'])
+@app.route("/post", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getLastN():
     # get all post that a user can view regardless of whether its official or not
@@ -445,7 +432,7 @@ def getOfficialPosts():
         return {"err": str(e)}, 400
 
 
-@app.route("/post/edit", methods=['PUT'])
+@app.route("/post", methods=['PUT'])
 @cross_origin(supports_credentials=True)
 def editPost():
     try:
@@ -573,6 +560,7 @@ def getAllFriends(userID):
 
 
 # Unused route
+# TODO verb here think of what might be better
 @app.route("/friend/check", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def checkFriend():
