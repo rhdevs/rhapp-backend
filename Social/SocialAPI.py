@@ -28,6 +28,8 @@ client = pymongo.MongoClient(
     "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
 db = client["RHApp"]
 
+# TODO find better alternatives (if any)
+
 
 def renamePost(post):
     post['postID'] = post.pop('_id')
@@ -39,8 +41,10 @@ def renamePost(post):
 def hello():
     return "Welcome the Raffles Hall Social server"
 
+# TODO merge User and Profile in database !!!!!
 
-@app.route('/profile/all')
+
+@app.route('/profile')
 @cross_origin(supports_credentials=True)
 def getAllProfiles():
     try:
@@ -49,80 +53,6 @@ def getAllProfiles():
     except Exception as e:
         print(e)
         return {"err": str(e)}, 400
-
-
-@app.route("/user", methods=['DELETE', 'POST'])
-@cross_origin(supports_credentials=True)
-def addDeleteUser():
-    try:
-        if request.method == "POST":
-            data = request.get_json()
-            userID = str(data.get('userID'))
-            passwordHash = str(data.get('passwordHash'))
-            email = str(data.get('email'))
-            position = []  # default to be empty, will be added manually from BE
-
-            body = {
-                "userID": userID,
-                "passwordHash": passwordHash,
-                "email": email,
-                "position": position
-            }
-            receipt = db.User.insert_one(body)
-            body["_id"] = str(receipt.inserted_id)
-
-            return {"message": body}, 200
-
-        elif request.method == "DELETE":
-            userID = request.args.get('userID')
-            db.User.delete_one({"userID": userID})
-            return Response(status=200)
-
-    except Exception as e:
-        print(e)
-        return {"err": str(e)}, 400
-
-
-@app.route("/user/edit", methods=['PUT'])
-@cross_origin(supports_credentials=True)
-def editUser():
-    try:
-        data = request.get_json()
-        userID = str(data.get('userID'))
-
-        oldUser = db.User.find_one({"userID": userID})
-        passwordHash = str(data.get('passwordHash')) if data.get(
-            'passwordHash') else oldUser.get('passwordHash')
-        email = str(data.get('email')) if data.get(
-            'email') else oldUser.get('email')
-
-        body = {
-            "userID": userID,
-            "passwordHash": passwordHash,
-            "email": email,
-        }
-
-        result = db.User.update_one({"userID": userID}, {'$set': body})
-        if int(result.matched_count) > 0:
-            return {'message': "Event changed"}, 200
-        else:
-            return Response(status=204)
-
-    except Exception as e:
-        print(e)
-        return {"err": str(e)}, 400
-    return {'message': "Event changed"}, 200
-
-
-@app.route("/profile/<string:userID>")
-@cross_origin(supports_credentials=True)
-def getUserProfile(userID):
-    try:
-        data = db.Profiles.find({"userID": userID})
-    except Exception as e:
-        print(e)
-        return {"err": str(e)}, 400
-    return json.dumps(list(data), default=lambda o: str(o)), 200
 
 
 @app.route("/profile/picture/<string:userID>", methods=['GET'])
@@ -149,7 +79,18 @@ def getUserPicture(userID):
         return make_response(response, 200)
 
 
-@app.route("/profile/edit", methods=['PUT'])
+@app.route("/profile/<string:userID>")
+@cross_origin(supports_credentials=True)
+def getUserProfile(userID):
+    try:
+        data = db.Profiles.find({"userID": userID})
+    except Exception as e:
+        print(e)
+        return {"err": str(e)}, 400
+    return json.dumps(list(data), default=lambda o: str(o)), 200
+
+
+@app.route("/profile", methods=['PUT'])
 @cross_origin(supports_credentials=True)
 def editProfile():
     try:
@@ -194,9 +135,74 @@ def editProfile():
     return {'message': "Event changed"}, 200
 
 
+@app.route("/user", methods=['PUT'])
+@cross_origin(supports_credentials=True)
+def editUser():
+    try:
+        data = request.get_json()
+        userID = str(data.get('userID'))
+
+        oldUser = db.User.find_one({"userID": userID})
+        passwordHash = str(data.get('passwordHash')) if data.get(
+            'passwordHash') else oldUser.get('passwordHash')
+        email = str(data.get('email')) if data.get(
+            'email') else oldUser.get('email')
+
+        body = {
+            "userID": userID,
+            "passwordHash": passwordHash,
+            "email": email,
+        }
+
+        result = db.User.update_one({"userID": userID}, {'$set': body})
+        if int(result.matched_count) > 0:
+            return {'message': "Event changed"}, 200
+        else:
+            return Response(status=204)
+
+    except Exception as e:
+        print(e)
+        return {"err": str(e)}, 400
+    return {'message': "Event changed"}, 200
+
+
+@app.route("/user", methods=['DELETE', 'POST'])
+@cross_origin(supports_credentials=True)
+def addDeleteUser():
+    try:
+        if request.method == "POST":
+            data = request.get_json()
+            userID = str(data.get('userID'))
+            passwordHash = str(data.get('passwordHash'))
+            email = str(data.get('email'))
+            position = []  # default to be empty, will be added manually from BE
+
+            body = {
+                "userID": userID,
+                "passwordHash": passwordHash,
+                "email": email,
+                "position": position
+            }
+            receipt = db.User.insert_one(body)
+            body["_id"] = str(receipt.inserted_id)
+
+            return {"message": body}, 200
+
+        elif request.method == "DELETE":
+            userID = request.args.get('userID')
+            db.User.delete_one({"userID": userID})
+            return Response(status=200)
+
+    except Exception as e:
+        print(e)
+        return {"err": str(e)}, 400
+
+
 @app.route("/user/details/<userID>")
 @cross_origin(supports_credentials=True)
 def getUserDetails(userID):
+    # TODO Use mongDB's lookup to join the tables instead
+    # TODO edit to match merged user and profiles tables
     try:
         data1 = db.User.find_one({"userID": userID}, {
                                  "passwordHash": 0, "_id": 0})
@@ -222,6 +228,7 @@ def getUserDetails(userID):
 
 
 def userIDtoName(userID):
+    # TODO use mongoDB lookup instead of this disgusting code
     # helper function
     profile = db.Profiles.find_one({"userID": userID})
     name = profile.get('displayName') if profile else None
@@ -289,6 +296,7 @@ def getPostSpecific():
         postID = request.args.get("postID")
 
         if postID:
+            # TODO use mongoDB lookup to join the data instead
             data = db.Posts.find_one({"_id": ObjectId(postID)})
             name = db.Profiles.find_one(
                 {"userID": str(data.get("userID"))}).get('displayName')
@@ -324,6 +332,7 @@ def getLastN():
 
         # friends = FriendsHelper(userID).get('friendList')
 
+        # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
         # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]
         #          }
 
@@ -334,6 +343,7 @@ def getLastN():
         for item in data:
             item['name'] = userIDtoName(item.get('userID'))
             profile = db.Profiles.find_one({'userID': item.get('userID')})
+            # TODO wtf is this abomination code can we standardise
             item['profilePictureURI'] = profile.get(
                 'profilePictureUrl') if profile != None else None
             item = renamePost(item)
@@ -686,6 +696,8 @@ Within POST request, obtain userID, password and email and add to User table in 
 If successful return 200, else return 500
 """
 
+#  TODO update to reflect new user and profile changes
+
 
 @app.route('/auth/register', methods=['POST'])
 @cross_origin(supports_credentials=True)
@@ -831,4 +843,3 @@ def logout():
 if __name__ == "__main__":
     # app.run(threaded=True, debug=True)
     app.run('0.0.0.0', port=8080)
-
