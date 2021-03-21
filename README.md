@@ -48,6 +48,28 @@ Return the response type as specific as possible
 6. For other files except the main.py, use blueprint (please refer to existing file such as LaundryAPI.py)
 7. To make the endpoints more specific, use /<int:sth>, but for parameters, use URL Arguments using ?= such as token, startTime, etc
    
+**Return Format** Example
+```
+response = {status:"success", data: {facilities: []}}
+response = {err: "Error message here", status="failed"}
+
+POST/EDIT/DELETE
+response = {status:"success"}
+
+return make_response(response)
+```
+
+**Naming** Example
+* /bookings – get all bookings
+* /bookings/<ID> - get 1 booking
+
+**Filtering and Pagination**
+<code>/bookings?page=</code>
+* Pagination - "page=1"
+* Filtering - use parameter name eg: "startTime"
+
+**Important note, get MongoDB 101 Slide from Junxiang or your BE Head to learn MongoDB further**
+
 # Git Practice 
 
 Check the https://www.youtube.com/watch?v=BUGjkDVsH_Y, **Intro to Git** by NUS Hackers, this is a very good resource. **Main is a protected branch, you should not commit to main directly**. General pointers:
