@@ -58,6 +58,7 @@ response = {"status":"success"}
 
 return make_response(response)
 ```
+**For PUT / POST** request, please check whether the item exists in the first place, otherwise throw error
 
 **Naming** Example
 * /bookings – get all bookings
