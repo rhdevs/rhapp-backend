@@ -207,14 +207,8 @@ def getUserDetails(userID):
 
         position = data1.get("position")
 
-        def getCCAName(ccaID):
-            return {
-                "name": db.CCA.find_one({"ccaID": ccaID}).get("ccaName"),
-                "ccaID": ccaID
-            }
-
-        position = list(map(getCCAName, position))
-        data1["position"] = position
+        data1["position"] = list(db.CCA.find(
+            {"ccaID": {"$in": position}}, {"_id": 0, "category": 0}))
 
         data1.update(data2)
 
