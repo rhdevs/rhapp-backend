@@ -1,3 +1,4 @@
+from env import *
 from flask import Flask, render_template, flash, redirect, url_for, request, jsonify, make_response
 import os
 from datetime import datetime
@@ -5,15 +6,18 @@ import time
 from flask_cors import cross_origin
 from flask import Blueprint
 import pymongo
+import sys
+sys.path.append("../env")
+
+
 laundry_api = Blueprint("laundry", __name__)
 
-DB_USERNAME = os.getenv('DB_USERNAME')
-DB_PWD = os.getenv('DB_PWD')
 URL = "mongodb+srv://{}:{}@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority".format(
     DB_USERNAME, DB_PWD)
 
 client = pymongo.MongoClient(URL)
 db = client["RHApp"]
+
 
 @laundry_api.route('/', methods=['GET'])
 @cross_origin(supports_credentials=True)
@@ -22,7 +26,7 @@ def home_page():
         response = {
             "status": "success",
             "data": {
-                "Hi People, this is Laundry API "
+                "message": "Hi People, this is Laundry API "
             }
         }
 
@@ -36,7 +40,7 @@ def home_page():
 @cross_origin(supports_credentials=True)
 def all_location():
     try:
-        all_location = list(db.LaundryLocation.find({'_id': 0}))
+        all_location = list(db.LaundryLocation.find({}, {'_id': 0}))
         response = {
             "status": "success",
             "data": {
@@ -54,7 +58,7 @@ def SweepAll():
     # function to do lazy deletion of all the laundry machines after 15 mins
     # Also do lazy update when duration + starttime of laundry is finished, change from In Use --> Uncollected
     # I assume since there are only 74 machines, sweeping 74 machines would be pretty fast for each call
-    all_machines = db.LaundryMachine.find({'_id': 0})
+    all_machines = db.LaundryMachine.find({}, {'_id': 0})
     # this one can optimize the query using if else inside the pymongo itself and in instead of update one by one
     for machine in all_machines:
         # print(machine.get('duration'));
@@ -101,7 +105,7 @@ def laundry_all():
         try:
             print("Just Sweep : " + str(SweepAll()))
 
-            laundryMachines = list(db.LaundryMachine.find({'_id': 0}))
+            laundryMachines = list(db.LaundryMachine.find({}, {'_id': 0}))
             response = {
                 "status": "success",
                 "data": {
