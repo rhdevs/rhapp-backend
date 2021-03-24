@@ -215,14 +215,14 @@ def user_telegram(userID):
         profile = db.Profiles.find_one({"userID": userID})
         telegramHandle = profile.get(
             'telegramHandle') if profile else "No User Found"
-        data = {"telegramHandle": telegramHandle}
 
         if (telegramHandle == "No User Found"):
-            return {"err": "No User Found"}, 400
+            raise Exception("User not found")
+        response = {"status": "success", "data": telegramHandle}
     except Exception as e:
         print(e)
         return {"err": str(e), "status": "failed"}, 400
-    return data, 200
+    return make_response(response)
 
 
 def keep_alive():
