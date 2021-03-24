@@ -69,7 +69,7 @@ return make_response(response)
 * Pagination - "page=1"
 * Filtering - use parameter name eg: "startTime"
 
-**Important note, get MongoDB 101 Slide from Junxiang or your BE Head to learn MongoDB further**
+**Important note, get MongoDB 101 Slide from Junxiang or your BE Head to learn MongoDB further, also get db.py from the repl.it or your BE Head**
 
 # Git Practice 
 
