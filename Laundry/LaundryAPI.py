@@ -1,4 +1,3 @@
-from env import *
 from flask import Flask, render_template, flash, redirect, url_for, request, jsonify, make_response
 import os
 from datetime import datetime
@@ -7,17 +6,10 @@ from flask_cors import cross_origin
 from flask import Blueprint
 import pymongo
 import sys
-sys.path.append("../env")
-
+sys.path.append("../db")
+from db import *
 
 laundry_api = Blueprint("laundry", __name__)
-
-URL = "mongodb+srv://{}:{}@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority".format(
-    DB_USERNAME, DB_PWD)
-
-client = pymongo.MongoClient(URL)
-db = client["RHApp"]
-
 
 @laundry_api.route('/', methods=['GET'])
 @cross_origin(supports_credentials=True)
