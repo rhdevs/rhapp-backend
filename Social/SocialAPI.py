@@ -194,21 +194,38 @@ def user():
 def getUserDetails(userID):
     # TODO Use mongDB's lookup to join the tables instead
     try:
-        data1 = db.User.find_one({"userID": userID}, {
-                                 "passwordHash": 0, "_id": 0})
-        data2 = db.Profiles.find_one({"userID": userID}, {"_id": 0})
+        pipeline = [
+            {'$match': {
+                'userID': userID
+            }
+            },
+            {'$lookup': {
+                'from': 'Profiles',
+                        'localField': 'userID',
+                        'foreignField': 'userID',
+                        'as': 'profile'
+            }
+            },
+            {
+                '$replaceRoot': {'newRoot': {'$mergeObjects': [{'$arrayElemAt': ["$profile", 0]}, "$$ROOT"]}}
+            },
+            {'$project': {'profile': 0}}
+        ]
 
-        position = data1.get("position")
+        data = db.User.aggregate(pipeline)
+        response = []
+        for item in data:
+            response.append(item)
+        response = response[0]
+        position = response["position"]
 
-        data1["position"] = list(db.CCA.find(
+        response["position"] = list(db.CCA.find(
             {"ccaID": {"$in": position}}, {"_id": 0, "category": 0}))
-
-        data1.update(data2)
 
     except Exception as e:
         return {"err": str(e)}, 400
 
-    return json.dumps(data1, default=lambda o: str(o)), 200
+    return make_response(json.dumps(response, default=lambda o: str(o)), 200)
 
 
 def userIDtoName(userID):
@@ -219,8 +236,8 @@ def userIDtoName(userID):
     return name
 
 
-@app.route("/post", methods=['DELETE', 'POST', 'GET'])
-@cross_origin(supports_credentials=True)
+@ app.route("/post", methods=['DELETE', 'POST', 'GET'])
+@ cross_origin(supports_credentials=True)
 def post():
     try:
         if request.method == 'GET':
@@ -247,7 +264,7 @@ def post():
                 item = renamePost(item)
                 response.append(item)
 
-            return make_reponse(json.dumps(response, default=lambda o: str(o)), 200)
+            return make_response(json.dumps(response, default=lambda o: str(o)), 200)
 
         elif request.method == 'DELETE':
             postID = request.args.get('postID')
@@ -809,5 +826,5 @@ def logout():
 
 
 if __name__ == "__main__":
-    # app.run(threaded=True, debug=True)
-    app.run('0.0.0.0', port=8080)
+    app.run(threaded=True, debug=True)
+    # app.run('0.0.0.0', port=8080)
