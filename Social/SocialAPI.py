@@ -213,12 +213,10 @@ def getUserDetails(userID):
         ]
 
         data = db.User.aggregate(pipeline)
-        response = []
+        response = None
         for item in data:
-            response.append(item)
-        response = response[0]
+            response = item
         position = response["position"]
-
         response["position"] = list(db.CCA.find(
             {"ccaID": {"$in": position}}, {"_id": 0, "category": 0}))
 
