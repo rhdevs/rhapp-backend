@@ -28,7 +28,8 @@ client = pymongo.MongoClient(
     "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
 db = client["RHApp"]
 
-# TODO find better alternatives (if any)
+# TODO
+# When put/delete, run find first to make sure element is present
 
 
 def renamePost(post):
@@ -42,17 +43,60 @@ def hello():
     return "Welcome the Raffles Hall Social server"
 
 
-@app.route('/profile')
+@app.route('/profile', methods=['GET', 'PUT'])
 @cross_origin(supports_credentials=True)
-def getAllProfiles():
+def profiles():
     try:
-        data = db.Profiles.find()
-        return json.dumps(list(data), default=lambda o: str(o)), 200
+        if request.method == 'GET':
+            data = db.Profiles.find()
+            return json.dumps(list(data), default=lambda o: str(o)), 200
+        elif request.method == 'PUT':
+            data = request.get_json()
+            userID = str(data.get('userID'))
+
+            oldData = db.Profiles.find_one({"userID": userID})
+            if oldData is None:
+                return make_response("data not found", 404)
+
+            displayName = str(data.get('displayName')) if data.get(
+                'displayName') else oldData.get('displayName')
+            bio = str(data.get('bio')) if data.get(
+                'bio') else oldData.get('bio')
+            profilePictureUrl = str(data.get('profilePictureUrl')) if data.get(
+                'profilePictureUrl') else oldData.get('displayName')
+            block = int(data.get('block')) if data.get(
+                'block') else oldData.get('block')
+            telegramHandle = str(data.get('telegramHandle')) if data.get(
+                'telegramHandle') else oldData.get('telegramHandle')
+            modules = data.get('modules') if data.get(
+                'modules') else oldData.get('modules')
+
+            body = {
+                "userID": userID,
+                "displayName": displayName,
+                "bio": bio,
+                "profilePictureUrl": profilePictureUrl,
+                "block": block,
+                "telegramHandle": telegramHandle,
+                "modules": modules
+            }
+
+            result = db.Profiles.update_one({"userID": userID}, {'$set': body})
+
+            if int(result.matched_count) > 0:
+                return {'message': "Event changed"}, 200
+            else:
+                return Response(status=204)
+        else:
+            response = {}
+            response["message"] = "command not recognized."
+
+            return make_response(response, 400)
     except Exception as e:
-        print(e)
         return {"err": str(e)}, 400
 
 
+# TODO
 @app.route("/profile/picture/<string:userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getUserPicture(userID):
@@ -76,6 +120,8 @@ def getUserPicture(userID):
 
         return make_response(response, 200)
 
+# TODO
+
 
 @app.route("/profile/<string:userID>")
 @cross_origin(supports_credentials=True)
@@ -88,87 +134,36 @@ def getUserProfile(userID):
     return json.dumps(list(data), default=lambda o: str(o)), 200
 
 
-@app.route("/profile", methods=['PUT'])
+@app.route("/user", methods=['PUT', 'DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
-def editProfile():
+def user():
     try:
-        data = request.get_json()
-        userID = str(data.get('userID'))
+        if request.method == 'PUT':
+            data = request.get_json()
+            userID = str(data.get('userID'))
 
-        oldData = db.Profiles.find_one({"userID": userID})
-        if oldData is None:
-            return make_response("data not found", 404)
+            oldUser = db.User.find_one({"userID": userID})
+            passwordHash = str(data.get('passwordHash')) if data.get(
+                'passwordHash') else oldUser.get('passwordHash')
+            email = str(data.get('email')) if data.get(
+                'email') else oldUser.get('email')
 
-        displayName = str(data.get('displayName')) if data.get(
-            'displayName') else oldData.get('displayName')
-        bio = str(data.get('bio')) if data.get('bio') else oldData.get('bio')
-        profilePictureUrl = str(data.get('profilePictureUrl')) if data.get(
-            'profilePictureUrl') else oldData.get('displayName')
-        block = int(data.get('block')) if data.get(
-            'block') else oldData.get('block')
-        telegramHandle = str(data.get('telegramHandle')) if data.get(
-            'telegramHandle') else oldData.get('telegramHandle')
-        modules = data.get('modules') if data.get(
-            'modules') else oldData.get('modules')
+            body = {
+                "userID": userID,
+                "passwordHash": passwordHash,
+                "email": email,
+            }
 
-        body = {
-            "userID": userID,
-            "displayName": displayName,
-            "bio": bio,
-            "profilePictureUrl": profilePictureUrl,
-            "block": block,
-            "telegramHandle": telegramHandle,
-            "modules": modules
-        }
-
-        result = db.Profiles.update_one({"userID": userID}, {'$set': body})
-
-        if int(result.matched_count) > 0:
-            return {'message': "Event changed"}, 200
-        else:
-            return Response(status=204)
-
-    except Exception as e:
-        return {"err": str(e)}, 400
-    return {'message': "Event changed"}, 200
-
-
-@app.route("/user", methods=['PUT'])
-@cross_origin(supports_credentials=True)
-def editUser():
-    try:
-        data = request.get_json()
-        userID = str(data.get('userID'))
-
-        oldUser = db.User.find_one({"userID": userID})
-        passwordHash = str(data.get('passwordHash')) if data.get(
-            'passwordHash') else oldUser.get('passwordHash')
-        email = str(data.get('email')) if data.get(
-            'email') else oldUser.get('email')
-
-        body = {
-            "userID": userID,
-            "passwordHash": passwordHash,
-            "email": email,
-        }
-
-        result = db.User.update_one({"userID": userID}, {'$set': body})
-        if int(result.matched_count) > 0:
-            return {'message': "Event changed"}, 200
-        else:
-            return Response(status=204)
-
-    except Exception as e:
-        print(e)
-        return {"err": str(e)}, 400
-    return {'message': "Event changed"}, 200
-
-
-@app.route("/user", methods=['DELETE', 'POST'])
-@cross_origin(supports_credentials=True)
-def addDeleteUser():
-    try:
-        if request.method == "POST":
+            result = db.User.update_one({"userID": userID}, {'$set': body})
+            if int(result.matched_count) > 0:
+                return {'message': "Event changed"}, 200
+            else:
+                return Response(status=204)
+        elif request.method == 'DELETE':
+            userID = request.args.get('userID')
+            db.User.delete_one({"userID": userID})
+            return Response(status=200)
+        elif request.method == 'POST':
             data = request.get_json()
             userID = str(data.get('userID'))
             passwordHash = str(data.get('passwordHash'))
@@ -185,14 +180,12 @@ def addDeleteUser():
             body["_id"] = str(receipt.inserted_id)
 
             return {"message": body}, 200
+        else:
+            response = {}
+            response["message"] = "command not recognized"
 
-        elif request.method == "DELETE":
-            userID = request.args.get('userID')
-            db.User.delete_one({"userID": userID})
-            return Response(status=200)
-
+            return make_response(response, 400)
     except Exception as e:
-        print(e)
         return {"err": str(e)}, 400
 
 
@@ -226,11 +219,42 @@ def userIDtoName(userID):
     return name
 
 
-@app.route("/post", methods=['DELETE', 'POST'])
+@app.route("/post", methods=['DELETE', 'POST', 'GET'])
 @cross_origin(supports_credentials=True)
-def addDeletePost():
+def post():
     try:
-        if request.method == "POST":
+        if request.method == 'GET':
+            # get all post that a user can view regardless of whether its official or not
+            # userID = str(request.args.get("userID"))
+            N = int(request.args.get('N')) if request.args.get('N') else 0
+
+            # friends = FriendsHelper(userID).get('friendList')
+
+            # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
+            # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]}
+
+            data = db.Posts.find(
+                {}, sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
+
+            response = []
+            for item in data:
+                item['name'] = userIDtoName(item.get('userID'))
+                profile = db.Profiles.find_one(
+                    {'userID': item.get('userID')})
+                # TODO wtf is this abomination code can we standardise
+                item['profilePictureURI'] = profile.get(
+                    'profilePictureUrl') if profile != None else None
+                item = renamePost(item)
+                response.append(item)
+
+            return make_reponse(json.dumps(response, default=lambda o: str(o)), 200)
+
+        elif request.method == 'DELETE':
+            postID = request.args.get('postID')
+            db.Posts.delete_one({"_id": ObjectId(postID)})
+            return make_response('deleted sucessfully', 200)
+
+        elif request.method == 'POST':
             data = request.get_json()
             userID = str(data.get('userID'))
             title = str(data.get('title'))
@@ -255,13 +279,12 @@ def addDeletePost():
             receipt = db.Posts.insert_one(body)
             body["_id"] = str(receipt.inserted_id)
 
-            return {"message": body}, 200
+            return make_response({"message": body}, 200)
+        else:
+            response = {}
+            response["message"] = "command not recognized"
 
-        elif request.method == "DELETE":
-            postID = request.args.get('postID')
-            db.Posts.delete_one({"_id": ObjectId(postID)})
-            return make_response('deleted sucessfully', 200)
-
+            return make_response(response, 400)
     except Exception as e:
         return {"err": str(e)}, 400
 
@@ -297,40 +320,6 @@ def getPostSpecific():
             return json.dumps(response, default=lambda o: str(o)), 200
 
     except Exception as e:
-        return {"err": str(e)}, 400
-
-
-@app.route("/post", methods=['GET'])
-@cross_origin(supports_credentials=True)
-def getLastN():
-    # get all post that a user can view regardless of whether its official or not
-    try:
-        # userID = str(request.args.get("userID"))
-        N = int(request.args.get('N')) if request.args.get('N') else 0
-
-        # friends = FriendsHelper(userID).get('friendList')
-
-        # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
-        # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]
-        #          }
-
-        data = db.Posts.find({},
-                             sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
-
-        response = []
-        for item in data:
-            item['name'] = userIDtoName(item.get('userID'))
-            profile = db.Profiles.find_one({'userID': item.get('userID')})
-            # TODO wtf is this abomination code can we standardise
-            item['profilePictureURI'] = profile.get(
-                'profilePictureUrl') if profile != None else None
-            item = renamePost(item)
-            response.append(item)
-
-        return json.dumps(response, default=lambda o: str(o)), 200
-
-    except Exception as e:
-        print(e)
         return {"err": str(e)}, 400
 
 
