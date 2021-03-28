@@ -1,3 +1,4 @@
+from db import *
 from flask import Flask, render_template, flash, redirect, url_for, request, jsonify, make_response
 import os
 from datetime import datetime
@@ -7,9 +8,9 @@ from flask import Blueprint
 import pymongo
 import sys
 sys.path.append("../db")
-from db import *
 
 laundry_api = Blueprint("laundry", __name__)
+
 
 @laundry_api.route('/', methods=['GET'])
 @cross_origin(supports_credentials=True)
@@ -50,48 +51,41 @@ def SweepAll():
     # function to do lazy deletion of all the laundry machines after 15 mins
     # Also do lazy update when duration + starttime of laundry is finished, change from In Use --> Uncollected
     # I assume since there are only 74 machines, sweeping 74 machines would be pretty fast for each call
-    all_machines = db.LaundryMachine.find({}, {'_id': 0})
+    # all_machines = db.LaundryMachine.find({}, {'_id': 0})
     # this one can optimize the query using if else inside the pymongo itself and in instead of update one by one
-    for machine in all_machines:
-        # print(machine.get('duration'));
-        startTime = 0 if machine.get(
-            'startTime') == None else machine.get('startTime')
-        expiryTime = startTime + int(machine.get('duration'))
-        currentTime = datetime.now().timestamp()
 
-        status = machine.get('job')
-        myquery = {
-            'machineID': machine.get("machineID")
-        }
+    currentTime = datetime.now().timestamp()
 
-        if(expiryTime < currentTime and status == "Reserved"):
-            # reset the duration
-            data_body = {'$set':
-                         {'duration': 0,
-                          "job": "Available"}
-                         }
-            try:
-                db.LaundryMachine.update_one(myquery, data_body)
-            except Exception as e:
-                return str(e) + " : Update " + str(machine.get("machineID")) + " failed"
-        elif (expiryTime < currentTime and status == "In Use"):
-            # reset the duration
-            data_body = {'$set':
-                         {'duration': 0,
-                          "job": "Uncollected"}
-                         }
-            try:
-                db.LaundryMachine.update_one(myquery, data_body)
-            except Exception as e:
-                return str(e) + " : Update " + str(machine.get("machineID")) + " failed"
+    try:
+        db.LaundryMachine.aggregate(
+            [
+                {'$project': {'expiryTime': {
+                    '$add': ['$startTime', '$duration']}}}
+            ]
+        )
 
-    return True
+        db.LaundryMachine.update(
+            {'expiryTime': {'$gte': '$currentTime'},
+             'status': {'eq': 'Reserved'}
+             },
+            {'$set': {'status': 'Available', 'duration': 0}}
+        )
 
+        db.LaundryMachine.update(
+            {'expiryTime': {'$gte': '$currentTime'},
+             'status': {'eq': 'In Use'}
+             },
+            {'$set': {'status': 'Uncollected', 'duration': 0}}
+        )
+
+        return True
+    except Exception as e:
+        raise Exception("Sweeping Failed " + str(e))
 
 db.LaundryMachine.create_index('userID')
 
 
-@laundry_api.route('/laundryMachines', methods=['GET'])
+@ laundry_api.route('/laundryMachines', methods=['GET'])
 def laundry_all():
     if request.method == 'GET':
         try:
@@ -300,8 +294,8 @@ def laundry_all():
             return make_response(response, 400)
 
 
-@laundry_api.route('/laundryMachines/<int:machineID>', methods=['GET'])
-@cross_origin(supports_credentials=True)
+@ laundry_api.route('/laundryMachines/<int:machineID>', methods=['GET'])
+@ cross_origin(supports_credentials=True)
 def laundry_by_id(machineID):
     try:
         laundry_info = db.LaundryMachine.find_one(
@@ -321,8 +315,8 @@ def laundry_by_id(machineID):
         return make_response(response, 400)
 
 
-@laundry_api.route('/laundryMachines/location/<int:locationID>', methods=['GET'])
-@cross_origin(supports_credentials=True)
+@ laundry_api.route('/laundryMachines/location/<int:locationID>', methods=['GET'])
+@ cross_origin(supports_credentials=True)
 def laundry_by_location(locationID):
     try:
         DEFAULT_PROFILE_URI = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"
@@ -362,8 +356,8 @@ def laundry_by_location(locationID):
         return make_response(response, 400)
 
 
-@laundry_api.route('/laundryMachines/duration', methods=['PUT'])
-@cross_origin(supports_credentials=True)
+@ laundry_api.route('/laundryMachines/duration', methods=['PUT'])
+@ cross_origin(supports_credentials=True)
 def laundry_machine_change_duration():
     try:
         data = request.get_json()
