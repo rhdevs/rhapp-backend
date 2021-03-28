@@ -49,7 +49,7 @@ def profiles():
     try:
         if request.method == 'GET':
             data = db.Profiles.find()
-            return json.dumps(list(data), default=lambda o: str(o)), 200
+            return make_response(json.dumps(list(data), default=lambda o: str(o)), 200)
         elif request.method == 'PUT':
             data = request.get_json()
             userID = str(data.get('userID'))
@@ -84,7 +84,7 @@ def profiles():
             result = db.Profiles.update_one({"userID": userID}, {'$set': body})
 
             if int(result.matched_count) > 0:
-                return {'message': "Event changed"}, 200
+                return make_response({'message': "Event changed"}, 200)
             else:
                 return Response(status=204)
     except Exception as e:
@@ -125,7 +125,7 @@ def getUserProfile(userID):
     except Exception as e:
         print(e)
         return {"err": str(e)}, 400
-    return json.dumps(list(data), default=lambda o: str(o)), 200
+    return make_response(json.dumps(list(data), default=lambda o: str(o)), 200)
 
 
 @app.route("/user", methods=['PUT', 'DELETE', 'POST'])
@@ -150,7 +150,7 @@ def user():
 
             result = db.User.update_one({"userID": userID}, {'$set': body})
             if int(result.matched_count) > 0:
-                return {'message': "Event changed"}, 200
+                return make_response({'message': "Event changed"}, 200)
             else:
                 return Response(status=204)
         elif request.method == 'DELETE':
@@ -173,7 +173,7 @@ def user():
             receipt = db.User.insert_one(body)
             body["_id"] = str(receipt.inserted_id)
 
-            return {"message": body}, 200
+            return make_response({"message": body}, 200)
 
     except Exception as e:
         return {"err": str(e)}, 400
@@ -342,7 +342,7 @@ def getPostSpecific():
             if data != None:
                 data = renamePost(data)
                 data['name'] = name
-                return json.dumps(data, default=lambda o: str(o)), 200
+                return make_response(json.dumps(data, default=lambda o: str(o)), 200)
             else:
                 return make_response("No Data Found", 404)
 
@@ -354,7 +354,7 @@ def getPostSpecific():
                 item = renamePost(item)
                 response.append(item)
 
-            return json.dumps(response, default=lambda o: str(o)), 200
+            return make_response(json.dumps(response, default=lambda o: str(o)), 200)
 
     except Exception as e:
         return {"err": str(e)}, 400
@@ -371,7 +371,7 @@ def getPostById(userID):
         return json.dumps(list(data), default=lambda o: str(o)), 200
     except Exception as e:
         print(e)
-        return {"err": str(e)}, 400
+        return make_response({"err": str(e)}, 400)
 
 
 def FriendsHelper(userID):
@@ -421,7 +421,7 @@ def getFriendsPostById():
         return make_response(json.dumps(response, default=lambda o: str(o)), 200)
 
     except Exception as e:
-        return {"err": str(e)}, 400
+        return make_response({"err": str(e)}, 400)
 
 
 @app.route("/post/official", methods=['GET'])
@@ -446,7 +446,7 @@ def getOfficialPosts():
             item['postID'] = item.get('_id')
             del item['_id']
 
-        return json.dumps(response, default=lambda o: str(o)), 200
+        return make_response(json.dumps(response, default=lambda o: str(o)), 200)
     except Exception as e:
         print(e)
         return {"err": str(e)}, 400
@@ -487,7 +487,7 @@ def editPost():
 
         result = db.Posts.update_one({"_id": ObjectId(postID)}, {'$set': body})
         if int(result.matched_count) > 0:
-            return {'message': "Event changed"}, 200
+            return make_response({'message': "Event changed"}, 200)
         else:
             return Response(status=204)
 
@@ -650,7 +650,7 @@ def images(imageName):
         if request.method == "GET":
             # get last 5 most recent
             response = db.Images.find({'imageName': imageName})
-            return json.dumps(response, default=lambda o: str(o)), 200
+            return make_response(json.dumps(response, default=lambda o: str(o)), 200)
 
         elif request.method == "POST":
             data = request.get_json()
@@ -665,7 +665,7 @@ def images(imageName):
             receipt = db.Images.insert_one(body)
             body["_id"] = str(receipt.inserted_id)
 
-            return {"message": body}, 200
+            return make_response({"message": body}, 200)
 
         elif request.method == "PUT":
             data = request.get_json()
@@ -689,7 +689,7 @@ def images(imageName):
 
     except Exception as e:
         print(e)
-        return {"err": str(e)}, 400
+        return make_response({"err": str(e)}, 400)
 
 
 # https://stackoverflow.com/questions/54750273/pymongo-and-ttl-wrong-expiration-time
