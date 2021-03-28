@@ -87,11 +87,6 @@ def profiles():
                 return {'message': "Event changed"}, 200
             else:
                 return Response(status=204)
-        else:
-            response = {}
-            response["message"] = "command not recognized."
-
-            return make_response(response, 400)
     except Exception as e:
         return {"err": str(e)}, 400
 
@@ -113,14 +108,13 @@ def getUserPicture(userID):
         return make_response(response, 200)
 
     except Exception as e:
+        # TODO don't catch all exceptions
         response['status'] = "default picture returned"
         response['data'] = {
             'image': defaultProfilePictureUrl
         }
 
         return make_response(response, 200)
-
-# TODO
 
 
 @app.route("/profile/<string:userID>")
@@ -180,19 +174,14 @@ def user():
             body["_id"] = str(receipt.inserted_id)
 
             return {"message": body}, 200
-        else:
-            response = {}
-            response["message"] = "command not recognized"
 
-            return make_response(response, 400)
     except Exception as e:
         return {"err": str(e)}, 400
 
 
-@app.route("/user/details/<userID>")
+@app.route("/user/<userID>")
 @cross_origin(supports_credentials=True)
 def getUserDetails(userID):
-    # TODO Use mongDB's lookup to join the tables instead
     try:
         pipeline = [
             {'$match': {
@@ -209,16 +198,23 @@ def getUserDetails(userID):
             {
                 '$replaceRoot': {'newRoot': {'$mergeObjects': [{'$arrayElemAt': ["$profile", 0]}, "$$ROOT"]}}
             },
-            {'$project': {'profile': 0}}
+            {'$project': {'profile': 0}},
+            {'$lookup': {
+                'from': 'CCA',
+                        'localField': 'position',
+                        'foreignField': 'ccaID',
+                        'as': 'positions'
+            }
+            },
+            {'$project': {'positions.category': 0, 'positions._id': 0, 'position': 0}}
         ]
 
         data = db.User.aggregate(pipeline)
         response = None
         for item in data:
             response = item
-        position = response["position"]
-        response["position"] = list(db.CCA.find(
-            {"ccaID": {"$in": position}}, {"_id": 0, "category": 0}))
+
+        return make_response(json.dumps(response, default=lambda o: str(o)), 200)
 
     except Exception as e:
         return {"err": str(e)}, 400
@@ -251,12 +247,43 @@ def post():
             data = db.Posts.find(
                 {}, sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
 
+            # Pipeline is good, but OUR ATLAS FREE TIER DOES NOT ALLOW SORTING, SKIPPING AND LIMITING IN PIPELINE
+
+            # pipeline = [
+            #     {'sort': {'createdAt': -1}},
+            #     {'skip': N*5},
+            #     {'limit': 5},
+            #     {
+            #         '$lookup': {
+            #             'from': 'Profiles',
+            #             'localField': 'userID',
+            #             'foreignField': 'userID',
+            #             'as': 'profile'
+            #         }
+            #     },
+            #     {
+            #         '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
+            #     },
+            #     {
+            #         '$addFields': {
+            #             'profilePictureURI': "$profile.profilePictureUrl",
+            #             'name': '$profile.displayName'
+            #         }
+            #     },
+            #     {'$project': {'profile': 0}}
+            # ]
+
+            # data = db.Posts.aggregate(pipeline)
+
             response = []
+
+            # for item in data:
+            #     response.append(item)
             for item in data:
-                item['name'] = userIDtoName(item.get('userID'))
                 profile = db.Profiles.find_one(
                     {'userID': item.get('userID')})
-                # TODO wtf is this abomination code can we standardise
+                item['name'] = profile.get(
+                    'displayName') if profile != None else None
                 item['profilePictureURI'] = profile.get(
                     'profilePictureUrl') if profile != None else None
                 item = renamePost(item)
@@ -295,11 +322,6 @@ def post():
             body["_id"] = str(receipt.inserted_id)
 
             return make_response({"message": body}, 200)
-        else:
-            response = {}
-            response["message"] = "command not recognized"
-
-            return make_response(response, 400)
     except Exception as e:
         return {"err": str(e)}, 400
 
