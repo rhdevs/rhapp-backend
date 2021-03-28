@@ -28,7 +28,6 @@ client = pymongo.MongoClient(
     "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
 db = client["RHApp"]
 
-# TODO
 # When put/delete, run find first to make sure element is present
 
 
@@ -91,7 +90,6 @@ def profiles():
         return {"err": str(e)}, 400
 
 
-# TODO
 @app.route("/profile/picture/<string:userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getUserPicture(userID):
@@ -230,7 +228,7 @@ def userIDtoName(userID):
     return name
 
 
-@ app.route("/post", methods=['DELETE', 'POST', 'GET'])
+@ app.route("/post", methods=['DELETE', 'POST', 'GET', 'PUT'])
 @ cross_origin(supports_credentials=True)
 def post():
     try:
@@ -322,6 +320,43 @@ def post():
             body["_id"] = str(receipt.inserted_id)
 
             return make_response({"message": body}, 200)
+
+        elif request.method == 'PUT':
+            data = request.get_json()
+            postID = data.get('postID')
+            oldPost = db.Posts.find_one({"_id": ObjectId(postID)})
+
+            if oldPost == None:
+                return make_response("data non existent", 404)
+
+            userID = str(data.get('userID')) if data.get(
+                'userID') else oldPost.get('userID')
+            title = str(data.get('title')) if data.get(
+                'title') else oldPost.get('title')
+            description = str(data.get('description')) if data.get(
+                'description') else oldPost.get('description')
+            ccaID = int(data.get('ccaID')) if data.get(
+                'ccaID') else oldPost.get('ccaID')
+            postPics = data.get('postPics') if data.get(
+                'postPics') else oldPost.get('postPics')
+            isOfficial = data.get('isOfficial') if data.get(
+                'isOfficial') else oldPost.get('isOfficial')
+
+            body = {
+                "userID": userID,
+                "title": title,
+                "description": description,
+                "ccaID": ccaID,
+                "postPics": postPics,
+                "isOfficial": isOfficial
+            }
+
+            result = db.Posts.update_one(
+                {"_id": ObjectId(postID)}, {'$set': body})
+            if int(result.matched_count) > 0:
+                return make_response({'message': "Event changed"}, 200)
+            else:
+                return Response(status=204)
     except Exception as e:
         return {"err": str(e)}, 400
 
@@ -512,51 +547,6 @@ def getOfficialPosts():
     except Exception as e:
         print(e)
         return {"err": str(e)}, 400
-
-
-@app.route("/post", methods=['PUT'])
-@cross_origin(supports_credentials=True)
-def editPost():
-    try:
-        data = request.get_json()
-        postID = data.get('postID')
-        oldPost = db.Posts.find_one({"_id": ObjectId(postID)})
-
-        if oldPost == None:
-            return make_response("data non existent", 404)
-
-        userID = str(data.get('userID')) if data.get(
-            'userID') else oldPost.get('userID')
-        title = str(data.get('title')) if data.get(
-            'title') else oldPost.get('title')
-        description = str(data.get('description')) if data.get(
-            'description') else oldPost.get('description')
-        ccaID = int(data.get('ccaID')) if data.get(
-            'ccaID') else oldPost.get('ccaID')
-        postPics = data.get('postPics') if data.get(
-            'postPics') else oldPost.get('postPics')
-        isOfficial = data.get('isOfficial') if data.get(
-            'isOfficial') else oldPost.get('isOfficial')
-
-        body = {
-            "userID": userID,
-            "title": title,
-            "description": description,
-            "ccaID": ccaID,
-            "postPics": postPics,
-            "isOfficial": isOfficial
-        }
-
-        result = db.Posts.update_one({"_id": ObjectId(postID)}, {'$set': body})
-        if int(result.matched_count) > 0:
-            return make_response({'message': "Event changed"}, 200)
-        else:
-            return Response(status=204)
-
-    except Exception as e:
-        print(e)
-        return {"err": str(e)}, 400
-    return {'message': "Event changed"}, 200
 
 
 '''
@@ -762,8 +752,6 @@ Register route:
 Within POST request, obtain userID, password and email and add to User table in Mongo, if userID has not been registered previously
 If successful return 200, else return 500
 """
-
-#  TODO update to reflect new user and profile changes
 
 
 @app.route('/auth/register', methods=['POST'])
