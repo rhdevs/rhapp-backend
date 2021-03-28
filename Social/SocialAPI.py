@@ -206,7 +206,7 @@ def getUserDetails(userID):
                         'as': 'positions'
             }
             },
-            {'$project': {'positions.category': 0, 'positions._id': 0, 'position': 0}}
+            {'$project': {'position': 0, 'positions.category': 0, 'positions._id': 0}},
         ]
 
         data = db.User.aggregate(pipeline)
@@ -334,25 +334,87 @@ def getPostSpecific():
         postID = request.args.get("postID")
 
         if postID:
-            # TODO use mongoDB lookup to join the data instead
-            data = db.Posts.find_one({"_id": ObjectId(postID)})
-            name = db.Profiles.find_one(
-                {"userID": str(data.get("userID"))}).get('displayName')
+            pipeline = [
+                {'$match': {'_id': ObjectId(postID)}},
+                {
+                    '$lookup': {
+                        'from': 'Profiles',
+                        'localField': 'userID',
+                        'foreignField': 'userID',
+                        'as': 'profile'
+                    }
+                },
+                {
+                    '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
+                },
+                {
+                    '$addFields': {
+                        'name': '$profile.displayName'
+                    }
+                },
+                {'$project': {'postID': '$_id',
+                              'userID': 1,
+                              'title': 1,
+                              'description': 1,
+                              'ccaID': 1,
+                              'createdAt': 1,
+                              'postPics': 1,
+                              'isOfficial': 1,
+                              'tags': 1,
+                              'name': 1,
+                              '_id': 0
+                              }},
+            ]
+
+            data1 = db.Posts.aggregate(pipeline)
+
+            data = None
+            for item in data1:
+                data = item
 
             if data != None:
-                data = renamePost(data)
-                data['name'] = name
                 return json.dumps(data, default=lambda o: str(o)), 200
             else:
                 return make_response("No Data Found", 404)
 
         elif userID:
-            data = db.Posts.find({"userID": str(userID)})
-            response = []
-            for item in data:
-                item['name'] = userIDtoName(item.get('userID'))
-                item = renamePost(item)
-                response.append(item)
+            pipeline = [
+                {'$match': {'userID': userID}},
+                {
+                    '$lookup': {
+                        'from': 'Profiles',
+                        'localField': 'userID',
+                        'foreignField': 'userID',
+                        'as': 'profile'
+                    }
+                },
+                {
+                    '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
+                },
+                {
+                    '$addFields': {
+                        'name': '$profile.displayName'
+                    }
+                },
+                {'$project': {'postID': '$_id',
+                              'userID': 1,
+                              'title': 1,
+                              'description': 1,
+                              'ccaID': 1,
+                              'createdAt': 1,
+                              'postPics': 1,
+                              'isOfficial': 1,
+                              'tags': 1,
+                              'name': 1,
+                              '_id': 0
+                              }},
+            ]
+
+            data1 = db.Posts.aggregate(pipeline)
+
+            response = None
+            for item in data1:
+                response = item
 
             return json.dumps(response, default=lambda o: str(o)), 200
 
