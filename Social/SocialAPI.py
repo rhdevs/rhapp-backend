@@ -49,7 +49,11 @@ def profiles():
     try:
         if request.method == 'GET':
             data = db.Profiles.find()
-            return make_response(json.dumps(list(data), default=lambda o: str(o)), 200)
+            response = {
+                "status": "success",
+                "data": json.dumps(list(data), default=lambda o: str(o))
+            }
+            return make_response(response, 200)
         elif request.method == 'PUT':
             data = request.get_json()
             userID = str(data.get('userID'))
@@ -84,11 +88,22 @@ def profiles():
             result = db.Profiles.update_one({"userID": userID}, {'$set': body})
 
             if int(result.matched_count) > 0:
-                return make_response({'message': "Event changed"}, 200)
+                response = {
+                    "status": "success",
+                    "message": "Event changed"
+                }
+                return make_response(response, 200)
             else:
-                return Response(status=204)
+                response = {
+                    "status": "failed",
+                }
+                return make_response(response, 204)
     except Exception as e:
-        return {"err": str(e)}, 400
+        response = {
+            "status": "failed",
+            "err": str(e)
+        }
+        return make_response(response, 400)
 
 
 # TODO
@@ -123,9 +138,18 @@ def getUserProfile(userID):
     try:
         data = db.Profiles.find({"userID": userID})
     except Exception as e:
+        response = {
+            "status": "failed",
+            "err": str(e)
+        }
         print(e)
-        return {"err": str(e)}, 400
-    return make_response(json.dumps(list(data), default=lambda o: str(o)), 200)
+        return make_response(response, 400)
+
+    response = {
+        "data": json.dumps(list(data), default=lambda o: str(o)),
+        "status": "success"
+    }
+    return make_response(response, 200)
 
 
 @app.route("/user", methods=['PUT', 'DELETE', 'POST'])
@@ -150,13 +174,22 @@ def user():
 
             result = db.User.update_one({"userID": userID}, {'$set': body})
             if int(result.matched_count) > 0:
-                return make_response({'message': "Event changed"}, 200)
+                response = {
+                    "message": "Event changed",
+                    "status": "success"
+                }
+                return make_response(response, 200)
             else:
-                return Response(status=204)
+                response = {
+                    "status": "failed"
+                }
+                return make_response(response, 204)
+
         elif request.method == 'DELETE':
             userID = request.args.get('userID')
             db.User.delete_one({"userID": userID})
-            return Response(status=200)
+
+            return make_response({"status": "success"}, 200)
         elif request.method == 'POST':
             data = request.get_json()
             userID = str(data.get('userID'))
@@ -173,7 +206,7 @@ def user():
             receipt = db.User.insert_one(body)
             body["_id"] = str(receipt.inserted_id)
 
-            return make_response({"message": body}, 200)
+            return make_response({"message": body, "status": "success"}, 200)
 
     except Exception as e:
         return {"err": str(e)}, 400
@@ -206,7 +239,7 @@ def getUserDetails(userID):
                         'as': 'positions'
             }
             },
-            {'$project': {'position': 0, 'positions.category': 0, 'positions._id': 0}},
+            {'$project': {'positions.category': 0, 'positions._id': 0, 'position': 0}}
         ]
 
         data = db.User.aggregate(pipeline)
@@ -214,12 +247,21 @@ def getUserDetails(userID):
         for item in data:
             response = item
 
-        return make_response(json.dumps(response, default=lambda o: str(o)), 200)
+        return make_response(
+            {
+                "data": json.dumps(response, default=lambda o: str(o)),
+                "status": "success"
+            }, 200)
 
     except Exception as e:
-        return {"err": str(e)}, 400
+        return {"err": str(e), "status": "failed"}, 400
 
-    return make_response(json.dumps(response, default=lambda o: str(o)), 200)
+    return make_response(
+        {
+            "data": json.dumps(response, default=lambda o: str(o)),
+            "status": "success"
+        },
+        200)
 
 
 def userIDtoName(userID):
@@ -289,12 +331,19 @@ def post():
                 item = renamePost(item)
                 response.append(item)
 
-            return make_response(json.dumps(response, default=lambda o: str(o)), 200)
+            return make_response(
+                {
+                    "data": json.dumps(response, default=lambda o: str(o)),
+                    "status": "success"
+                }, 200)
 
         elif request.method == 'DELETE':
             postID = request.args.get('postID')
             db.Posts.delete_one({"_id": ObjectId(postID)})
-            return make_response('deleted sucessfully', 200)
+            response = {
+                "status": "success"
+            }
+            return make_response(response, 200)
 
         elif request.method == 'POST':
             data = request.get_json()
@@ -321,9 +370,9 @@ def post():
             receipt = db.Posts.insert_one(body)
             body["_id"] = str(receipt.inserted_id)
 
-            return make_response({"message": body}, 200)
+            return make_response({"message": body, "status": "success"}, 200)
     except Exception as e:
-        return {"err": str(e)}, 400
+        return {"err": str(e), "status": "failed"}, 400
 
 
 @app.route("/post/search", methods=['GET'])
@@ -334,92 +383,39 @@ def getPostSpecific():
         postID = request.args.get("postID")
 
         if postID:
-            pipeline = [
-                {'$match': {'_id': ObjectId(postID)}},
-                {
-                    '$lookup': {
-                        'from': 'Profiles',
-                        'localField': 'userID',
-                        'foreignField': 'userID',
-                        'as': 'profile'
-                    }
-                },
-                {
-                    '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
-                },
-                {
-                    '$addFields': {
-                        'name': '$profile.displayName'
-                    }
-                },
-                {'$project': {'postID': '$_id',
-                              'userID': 1,
-                              'title': 1,
-                              'description': 1,
-                              'ccaID': 1,
-                              'createdAt': 1,
-                              'postPics': 1,
-                              'isOfficial': 1,
-                              'tags': 1,
-                              'name': 1,
-                              '_id': 0
-                              }},
-            ]
-
-            data1 = db.Posts.aggregate(pipeline)
-
-            data = None
-            for item in data1:
-                data = item
+            # TODO use mongoDB lookup to join the data instead
+            data = db.Posts.find_one({"_id": ObjectId(postID)})
+            name = db.Profiles.find_one(
+                {"userID": str(data.get("userID"))}).get('displayName')
 
             if data != None:
-                return make_response(json.dumps(data, default=lambda o: str(o)), 200)
+                data = renamePost(data)
+                data['name'] = name
+                response = {
+                    "status": "success",
+                    "data": json.dumps(data, default=lambda o: str(o))
+                }
+                return make_response(response, 200)
             else:
-                return make_response("No Data Found", 404)
+                return make_response({"message": "No Data Found", "status": "failed"}, 404)
 
         elif userID:
-            pipeline = [
-                {'$match': {'userID': userID}},
-                {
-                    '$lookup': {
-                        'from': 'Profiles',
-                        'localField': 'userID',
-                        'foreignField': 'userID',
-                        'as': 'profile'
-                    }
-                },
-                {
-                    '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
-                },
-                {
-                    '$addFields': {
-                        'name': '$profile.displayName'
-                    }
-                },
-                {'$project': {'postID': '$_id',
-                              'userID': 1,
-                              'title': 1,
-                              'description': 1,
-                              'ccaID': 1,
-                              'createdAt': 1,
-                              'postPics': 1,
-                              'isOfficial': 1,
-                              'tags': 1,
-                              'name': 1,
-                              '_id': 0
-                              }},
-            ]
+            data = db.Posts.find({"userID": str(userID)})
+            response = []
+            for item in data:
+                item['name'] = userIDtoName(item.get('userID'))
+                item = renamePost(item)
+                response.append(item)
 
-            data1 = db.Posts.aggregate(pipeline)
-
-            response = None
-            for item in data1:
-                response = item
-
-            return make_response(json.dumps(response, default=lambda o: str(o)), 200)
+            return make_response(
+                {
+                    "data": json.dumps(response, default=lambda o: str(o)),
+                    "status": "success"
+                },
+                200)
 
     except Exception as e:
-        return {"err": str(e)}, 400
+        return make_response({"err": str(e), "status": "failed"}, 400)
 
 
 @app.route("/post/<userID>", methods=['GET'])
@@ -430,10 +426,14 @@ def getPostById(userID):
 
         data = db.Posts.find({"userID": str(userID)}, sort=[
                              ('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
-        return json.dumps(list(data), default=lambda o: str(o)), 200
+        response = {
+            "status": "success",
+            "data": json.dumps(list(data), default=lambda o: str(o))
+        }
+        return make_response(response, 200)
     except Exception as e:
         print(e)
-        return make_response({"err": str(e)}, 400)
+        return make_response({"err": str(e), "status": "failed"}, 400)
 
 
 def FriendsHelper(userID):
@@ -480,10 +480,15 @@ def getFriendsPostById():
             item = renamePost(item)
             response.append(item)
 
-        return make_response(json.dumps(response, default=lambda o: str(o)), 200)
+        return make_response(
+            {
+                "data": json.dumps(response, default=lambda o: str(o)),
+                "status": "success"
+            },
+            200)
 
     except Exception as e:
-        return make_response({"err": str(e)}, 400)
+        return make_response({"err": str(e), "status": "failed"}, 400)
 
 
 @app.route("/post/official", methods=['GET'])
@@ -508,10 +513,15 @@ def getOfficialPosts():
             item['postID'] = item.get('_id')
             del item['_id']
 
-        return make_response(json.dumps(response, default=lambda o: str(o)), 200)
+        return make_response(
+            {
+                "data": json.dumps(response, default=lambda o: str(o)),
+                "status": "success"
+            },
+            200)
     except Exception as e:
         print(e)
-        return {"err": str(e)}, 400
+        return {"err": str(e), "status": "failed"}, 400
 
 
 @app.route("/post", methods=['PUT'])
@@ -523,7 +533,7 @@ def editPost():
         oldPost = db.Posts.find_one({"_id": ObjectId(postID)})
 
         if oldPost == None:
-            return make_response("data non existent", 404)
+            return make_response({"status": "failed", "message": "data non existent"}, 404)
 
         userID = str(data.get('userID')) if data.get(
             'userID') else oldPost.get('userID')
@@ -549,14 +559,15 @@ def editPost():
 
         result = db.Posts.update_one({"_id": ObjectId(postID)}, {'$set': body})
         if int(result.matched_count) > 0:
-            return make_response({'message': "Event changed"}, 200)
+            return make_response({'message': "Event changed", "status": "success"}, 200)
         else:
-            return Response(status=204)
+            return make_response({"status": "failed"}, 204)
 
     except Exception as e:
         print(e)
-        return {"err": str(e)}, 400
-    return {'message': "Event changed"}, 200
+        return make_response({"err": str(e), "status": "failed"}, 400)
+
+    return make_response({"message": "Event changed", "status": "success"}, 200)
 
 
 '''
@@ -594,9 +605,9 @@ def createDeleteFriend():
             if(result == None):
                 db.Friends.insert_one(body)
 
-                return make_response({"Insert Succesful"}, 200)
+                return make_response({"message": "Insert Succesful", "status": "success"}, 200)
             else:
-                return make_response("Friendship exists", 400)
+                return make_response({"message": "Friendship exists", "status": "failed"}, 400)
 
         elif request.method == "DELETE":
             data = request.get_json()
@@ -616,10 +627,10 @@ def createDeleteFriend():
 
             db.Friends.delete_one(query)
 
-            return make_response("Delete Successful", 200)
+            return make_response({"message": "Delete Successful", "status": "success"}, 200)
 
     except Exception as e:
-        return make_response({"err": str(e)}, 400)
+        return make_response({"err": str(e), "status": "failed"}, 400)
 
 
 @app.route("/friend/<userID>", methods=["GET"])
@@ -635,10 +646,15 @@ def getAllFriends(userID):
             if entry != None:
                 result.append(entry)
 
-        return make_response(json.dumps(result, default=lambda o: str(o)), 200)
+        return make_response(
+            {
+                "data": json.dumps(result, default=lambda o: str(o)),
+                "status": "success"
+            },
+            200)
 
     except Exception as e:
-        return make_response({"err": str(e)}, 400)
+        return make_response({"err": str(e), "status": "failed"}, 400)
 
 
 # Unused route
@@ -665,13 +681,13 @@ def checkFriend():
     if(result != None):
         response = {
             "message": "friendship exists",
-            "status": True
+            "status": "success"
         }
         return make_response(response, 200)
     else:
         response = {
             "message": "friendship doesnt exist",
-            "status": False
+            "status": "success"
         }
         return make_response(response, 200)
 
@@ -694,13 +710,17 @@ def search():
         response = {
             "profiles": list(profiles),
             "events": list(events),
-            "facilities": list(facilities)
+            "facilities": list(facilities),
+            "status": "success"
         }
 
         return make_response(response, 200)
 
     except Exception as e:
-        response = {"err": e}
+        response = {
+            "err": e,
+            "status": "failed"
+        }
         return make_response(response, 400)
 
 
@@ -727,7 +747,7 @@ def images(imageName):
             receipt = db.Images.insert_one(body)
             body["_id"] = str(receipt.inserted_id)
 
-            return make_response({"message": body}, 200)
+            return make_response({"message": body, "status": "success"}, 200)
 
         elif request.method == "PUT":
             data = request.get_json()
@@ -742,16 +762,21 @@ def images(imageName):
             db.Images.update_one({"imageName": imageName}, {
                 '$set': body}, upsert=True)
 
-            return {'message': "Event changed"}, 200
+            return make_response({'message': "Event changed", "status": "success"}, 200)
 
         elif request.method == "DELETE":
             imageName = request.args.get('imageName')
             db.Images.delete_one({"imageName": imageName})
-            return make_response('deleted sucessfully', 200)
+            return make_response(
+                {
+                    "message": "deleted sucessfully",
+                    "status": "success"
+                },
+                200)
 
     except Exception as e:
         print(e)
-        return make_response({"err": str(e)}, 400)
+        return make_response({"err": str(e), "status": "failed"}, 400)
 
 
 # https://stackoverflow.com/questions/54750273/pymongo-and-ttl-wrong-expiration-time
