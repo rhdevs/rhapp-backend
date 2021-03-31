@@ -1,3 +1,4 @@
+from db import *
 from flask import Flask, request, jsonify, Response, make_response
 from flask_cors import CORS, cross_origin
 import pymongo
@@ -7,26 +8,10 @@ import time
 import jwt
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
+from flask import Blueprint
+sys.path.append("../db")
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-# resources allowed to be accessed explicitly
-# response.headers.add("Access-Control-Allow-Origin", "*"), add this to all responses
-# if the cors still now working
-app.config['CORS_HEADERS'] = 'Content-Type'
-app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
-
-DB_USERNAME = os.getenv('DB_USERNAME')
-DB_PWD = os.getenv('DB_PWD')
-URL = "mongodb+srv://rhdevs-db-admin:{}@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority".format(
-    DB_PWD)
-
-# client = pymongo.MongoClient(URL)
-# db = client["RHApp"]
-
-client = pymongo.MongoClient(
-    "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
-db = client["RHApp"]
+social_api = Blueprint("social", __name__)
 
 # When put/delete, run find first to make sure element is present
 
@@ -36,13 +21,13 @@ def renamePost(post):
     return post
 
 
-@app.route("/")
+@social_api.route("/")
 @cross_origin(supports_credentials=True)
 def hello():
     return "Welcome the Raffles Hall Social server"
 
 
-@app.route('/profile', methods=['GET', 'PUT'])
+@social_api.route('/profile', methods=['GET', 'PUT'])
 @cross_origin(supports_credentials=True)
 def profiles():
     try:
@@ -105,7 +90,7 @@ def profiles():
         return make_response(response, 400)
 
 
-@app.route("/profile/picture/<string:userID>", methods=['GET'])
+@social_api.route("/profile/picture/<string:userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getUserPicture(userID):
     response = {}
@@ -130,7 +115,7 @@ def getUserPicture(userID):
         return make_response(response, 200)
 
 
-@app.route("/profile/<string:userID>")
+@social_api.route("/profile/<string:userID>")
 @cross_origin(supports_credentials=True)
 def getUserProfile(userID):
     try:
@@ -150,7 +135,7 @@ def getUserProfile(userID):
     return make_response(response, 200)
 
 
-@app.route("/user", methods=['PUT', 'DELETE', 'POST'])
+@social_api.route("/user", methods=['PUT', 'DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def user():
     try:
@@ -210,7 +195,7 @@ def user():
         return {"err": str(e)}, 400
 
 
-@app.route("/user/<userID>")
+@social_api.route("/user/<userID>")
 @cross_origin(supports_credentials=True)
 def getUserDetails(userID):
     try:
@@ -270,7 +255,7 @@ def userIDtoName(userID):
     return name
 
 
-@ app.route("/post", methods=['DELETE', 'POST', 'GET', 'PUT'])
+@ social_api.route("/post", methods=['DELETE', 'POST', 'GET', 'PUT'])
 @ cross_origin(supports_credentials=True)
 def post():
     try:
@@ -410,7 +395,7 @@ def post():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@app.route("/post/search", methods=['GET'])
+@social_api.route("/post/search", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getPostSpecific():
     try:
@@ -453,7 +438,7 @@ def getPostSpecific():
         return make_response({"err": str(e), "status": "failed"}, 400)
 
 
-@app.route("/post/<userID>", methods=['GET'])
+@social_api.route("/post/<userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getPostById(userID):
     try:
@@ -492,7 +477,7 @@ def FriendsHelper(userID):
     return response
 
 
-@app.route("/post/friend", methods=['GET'])
+@social_api.route("/post/friend", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getFriendsPostById():
     try:
@@ -526,7 +511,7 @@ def getFriendsPostById():
         return make_response({"err": str(e), "status": "failed"}, 400)
 
 
-@app.route("/post/official", methods=['GET'])
+@social_api.route("/post/official", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getOfficialPosts():
     try:
@@ -564,7 +549,7 @@ Friends API
 '''
 
 
-@app.route("/friend", methods=['DELETE', 'POST'])
+@social_api.route("/friend", methods=['DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def createDeleteFriend():
     try:
@@ -622,7 +607,7 @@ def createDeleteFriend():
         return make_response({"err": str(e), "status": "failed"}, 400)
 
 
-@app.route("/friend/<userID>", methods=["GET"])
+@social_api.route("/friend/<userID>", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def getAllFriends(userID):
     try:
@@ -648,7 +633,7 @@ def getAllFriends(userID):
 
 # Unused route
 # TODO verb here think of what might be better
-@app.route("/friend/check", methods=["GET"])
+@social_api.route("/friend/check", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def checkFriend():
     userOne = request.args.get('userIDOne')
@@ -681,7 +666,7 @@ def checkFriend():
         return make_response(response, 200)
 
 
-@app.route("/search", methods=["GET"])
+@social_api.route("/search", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def search():
     # a function to search all events, facilities and profiles
@@ -714,7 +699,7 @@ def search():
 
 
 # Unused route
-@app.route("/image/<string:imageName>", methods=['GET', 'PUT', 'DELETE', 'POST'])
+@social_api.route("/image/<string:imageName>", methods=['GET', 'PUT', 'DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def images(imageName):
     try:
@@ -778,7 +763,7 @@ If successful return 200, else return 500
 """
 
 
-@app.route('/auth/register', methods=['POST'])
+@social_api.route('/auth/register', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def register():
     try:
@@ -824,7 +809,7 @@ If true, create session, return JWT to client, else return 500.
 """
 
 
-@app.route('/auth/login', methods=['POST'])
+@social_api.route('/auth/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
     req = request.get_json()
@@ -838,7 +823,7 @@ def login():
     creationDate = datetime.now()
     db.Session.update_one({'userID': userID, 'passwordHash': passwordHash}, {'$set': {
         'userID': userID, 'passwordHash': passwordHash, 'createdAt': creationDate}}, upsert=True)
-
+    # Not sure if this still works, need to check (the .app)
     token = jwt.encode({'userID': userID,
                         'passwordHash': passwordHash
                         }, app.config['SECRET_KEY'], algorithm="HS256")
@@ -894,7 +879,7 @@ Successful authentication will return the 200 status code below. Any other error
 """
 
 
-@app.route('/auth/protected', methods=['GET'])
+@social_api.route('/auth/protected', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_for_token
 def protected(currentUser):
@@ -908,7 +893,7 @@ Delete the session entry
 
 
 # Unused route
-@app.route('/auth/logout', methods=['GET'])
+@social_api.route('/auth/logout', methods=['GET'])
 @cross_origin(supports_credentials=True)
 def logout():
     userID = request.args.get('userID')
@@ -917,8 +902,3 @@ def logout():
     except:
         return jsonify({'message': 'An error occurred'}), 500
     return jsonify({'message': 'You have been successfully logged out'}), 200
-
-
-if __name__ == "__main__":
-    app.run(threaded=True, debug=True)
-    # app.run('0.0.0.0', port=8080)

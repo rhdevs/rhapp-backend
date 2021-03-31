@@ -5,6 +5,7 @@ from flask_cors import CORS, cross_origin
 import os
 import pymongo
 from Laundry.LaundryAPI import laundry_api
+from Social.SocialAPI import social_api
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -12,6 +13,7 @@ app.config['CORS_HEADERS'] = "Content-Type"
 app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
 
 app.register_blueprint(laundry_api, url_prefix="/laundry")
+app.register_blueprint(social_api, url_prefix="/social")
 
 
 @app.route("/")
