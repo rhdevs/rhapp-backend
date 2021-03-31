@@ -9,7 +9,7 @@ import pymongo
 import sys
 sys.path.append("../db")
 
-facilities_api = Blueprint("faciliteis", __name__)
+facilities_api = Blueprint("facilities", __name__)
 
 
 @facilities_api.route('/')
@@ -22,7 +22,8 @@ def root_route():
 @cross_origin(supports_credentials=True)
 def all_facilities():
     try:
-        data = list(db.Facilities.find({"_id": 0}).sort([("facilityName", 1)]))
+        data = list(db.Facilities.find(
+            {}, {"_id": 0}).sort([("facilityName", 1)]))
         response = {"status": "success", "data": {"facilities": data}}
     except Exception as e:
         print(e)
@@ -130,8 +131,8 @@ def add_booking():
 @ cross_origin(supports_credentials=True)
 def get_booking(bookingID):
     try:
-        data = listToIndexedDict(
-            list(db.Bookings.find({"bookingID": int(bookingID)})))
+        data = list(db.Bookings.find(
+            {"bookingID": int(bookingID)}, {"_id": 0}))
         response = {"status": "success", "data": data}
     except Exception as e:
         print(e)

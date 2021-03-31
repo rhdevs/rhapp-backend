@@ -13,9 +13,7 @@ app.config['CORS_HEADERS'] = "Content-Type"
 app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
 
 app.register_blueprint(laundry_api, url_prefix="/laundry")
-
-app.register_blueprint(laundry_api)
-app.register_blueprint(facilities_api)
+app.register_blueprint(facilities_api, url_prefix="/facilities")
 
 
 @app.route("/")
