@@ -27,7 +27,7 @@ def hello():
     return "Welcome the Raffles Hall Social server"
 
 
-@social_api.route('/profile', methods=['GET', 'PUT'])
+@social_api.route('/profiles', methods=['GET', 'PUT'])
 @cross_origin(supports_credentials=True)
 def profiles():
     try:
@@ -255,9 +255,9 @@ def userIDtoName(userID):
     return name
 
 
-@ social_api.route("/post", methods=['DELETE', 'POST', 'GET', 'PUT'])
+@ social_api.route("/posts", methods=['DELETE', 'POST', 'GET', 'PUT'])
 @ cross_origin(supports_credentials=True)
-def post():
+def posts():
     try:
         if request.method == 'GET':
             # get all post that a user can view regardless of whether its official or not
