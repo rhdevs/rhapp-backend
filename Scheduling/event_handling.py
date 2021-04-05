@@ -51,7 +51,7 @@ def getUserTimetable(userID):
     return make_response(response)
 
 
-@app.route('/event/all', methods=["GET"])
+@app.route('/event/', methods=["GET"])
 @cross_origin()
 def getAllEvents():
     try:
@@ -62,7 +62,7 @@ def getAllEvents():
     return make_response(response)
 
 
-@app.route('/event/private/all', methods=["GET"])
+@app.route('/event/private/', methods=["GET"])
 @cross_origin()
 def getAllPrivateEvents():
     try:
@@ -106,7 +106,7 @@ def getPublicEventsPagination(pagination, startTime=0):
     return make_response(response)
 
 
-@app.route('/event/public/all', methods=["GET"])
+@app.route('/event/public/', methods=["GET"])
 @cross_origin()
 def getAllPublicEvents():
     try:
@@ -131,7 +131,7 @@ def getPublicEventAfterTime(startTime):
     return make_response(response)
 
 
-@app.route('/cca/all', methods=["GET"])
+@app.route('/cca/', methods=["GET"])
 @cross_origin()
 def getAllCCA():
     try:
@@ -198,7 +198,7 @@ def getUserCCAs(userID):
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response)
 
-@app.route("/user_event/<string:userID>/all", methods=['GET'])
+@app.route("/user_event/<string:userID>/", methods=['GET'])
 @cross_origin()
 def getUserAttendanceAll(userID):
     try:
@@ -259,7 +259,7 @@ def getCCAMembers(ccaID):
     return make_response(response)
 
 
-@app.route("/user_CCA", methods=["GET"])
+@app.route("/user_CCA/", methods=["GET"])
 @cross_origin()
 def getCCAMembersName():
     try:
@@ -313,7 +313,7 @@ def addDeletePermissions():
     return {"status": "success"}, 200
 
 
-@app.route("/event/add", methods=['POST'])
+@app.route("/event/", methods=['POST'])
 @cross_origin()
 def createEvent():
     try:
@@ -362,7 +362,7 @@ def createEvent():
     return make_response(response)
 
 
-@app.route("/event/delete/<eventID>", methods=['DELETE'])
+@app.route("/event/<eventID>", methods=['DELETE'])
 @cross_origin()
 def deleteEvent(eventID):
     try:
@@ -373,7 +373,7 @@ def deleteEvent(eventID):
     return {"status": "success"}, 200
 
 
-@app.route("/event/edit", methods=['PUT'])
+@app.route("/event/", methods=['PUT'])
 @cross_origin()
 def editEvent():
     try:
@@ -418,7 +418,7 @@ def editEvent():
     return make_response(response)
 
 
-@app.route("/user_event", methods=['POST', 'DELETE'])
+@app.route("/user_event/", methods=['POST', 'DELETE'])
 @cross_origin()
 def editAttendance():
     try:
@@ -451,18 +451,18 @@ def getMods(userID):
     return make_response(response)
 
 
-@app.route("/nusmods/delete/<userID>", methods=['DELETE'])
-@cross_origin()
-def deleteMods(userID):
-    try:
-        db.NUSMods.delete_one({"userID": userID})
+# @app.route("/nusmods/<userID>", methods=['DELETE'])
+# @cross_origin()
+# def deleteMods(userID):
+#     try:
+#         db.NUSMods.delete_one({"userID": userID})
 
-    except Exception as e:
-        return {"err": str(e), "status": "failed"}, 400
-    return {"status": "success"}, 200
+#     except Exception as e:
+#         return {"err": str(e), "status": "failed"}, 400
+#     return {"status": "success"}, 200
 
 
-@app.route("/nusmods/deleteMod", methods=['PUT'])
+@app.route("/nusmods/", methods=['DELETE'])
 @cross_origin()
 def deleteOneMod():
     try:
@@ -491,7 +491,7 @@ def deleteOneMod():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@app.route("/nusmods", methods=['PUT'])
+@app.route("/nusmods", methods=['POST'])
 @cross_origin()
 def addMods():
     try:
@@ -512,7 +512,7 @@ def addMods():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@app.route("/nusmods/addNUSMods", methods=['PUT'])
+@app.route("/nusmods/addNUSMods", methods=['POST'])
 @cross_origin()
 def addNUSModsEvents():
 
