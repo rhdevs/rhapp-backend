@@ -48,7 +48,7 @@ def getUserTimetable(userID):
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/', methods=["GET"])
@@ -59,7 +59,7 @@ def getAllEvents():
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/private/', methods=["GET"])
@@ -73,7 +73,7 @@ def getAllPrivateEvents():
             response["data"].append(item)
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/private/<userID>/<startTime>', methods=["GET"])
@@ -88,7 +88,7 @@ def getPrivateEventOfUserAfterTime(userID, startTime):
             response["data"].append(item)
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/public/<pagination>/<startTime>', methods=["GET"])
@@ -103,7 +103,7 @@ def getPublicEventsPagination(pagination, startTime=0):
             response["data"].append(item)
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/public/', methods=["GET"])
@@ -117,7 +117,7 @@ def getAllPublicEvents():
             response["data"].append(item)
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 @app.route('/event/public/afterTime/<startTime>', methods=["GET"])
 @cross_origin()
@@ -128,7 +128,7 @@ def getPublicEventAfterTime(startTime):
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/cca/', methods=["GET"])
@@ -139,7 +139,7 @@ def getAllCCA():
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/ccaID/<int:ccaID>', methods=["GET"])
@@ -158,7 +158,7 @@ def getEventsCCA(ccaID, referenceTime=0):
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/event/eventID/<string:eventID>', methods=["GET"])
@@ -172,7 +172,7 @@ def getEventsDetails(eventID):
             response["data"].append(item)
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route('/cca/<int:ccaID>', methods=["GET"])
@@ -196,7 +196,7 @@ def getUserCCAs(userID):
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 @app.route("/user_event/<string:userID>/", methods=['GET'])
 @cross_origin()
@@ -210,7 +210,7 @@ def getUserAttendanceAll(userID):
         response = {"status": "success", "data": response}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 @app.route("/user_event/<userID>/<int:referenceTime>", methods=["GET"])
 @cross_origin()
@@ -233,7 +233,7 @@ def getUserAttendance(userID, referenceTime):
         response = {"status": "success", "data": list(response)}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route("/user_event/<eventID>", methods=["GET"])
@@ -256,7 +256,7 @@ def getCCAMembers(ccaID):
         response = {"status": "success", "data": list(response)}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route("/user_CCA/", methods=["GET"])
@@ -284,7 +284,7 @@ def getUserPermissions(userID):
 
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @ app.route("/permissions", methods=['DELETE', 'POST'])
@@ -359,7 +359,7 @@ def createEvent():
 
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route("/event/<eventID>", methods=['DELETE'])
@@ -415,7 +415,7 @@ def editEvent():
 
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 @app.route("/user_event/", methods=['POST', 'DELETE'])
@@ -448,7 +448,7 @@ def getMods(userID):
         response = {"status": "success", "data": list(data)}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 # @app.route("/nusmods/<userID>", methods=['DELETE'])
@@ -587,7 +587,7 @@ def addNUSModsEvents():
     except Exception as e:
 
         return {"err": str(e), "status": "failed"}, 400
-    return make_response(response)
+    return make_response(response, 200)
 
 
 
