@@ -6,6 +6,7 @@ import os
 import pymongo
 from Laundry.LaundryAPI import laundry_api
 from FacilityBooking.FacilitiesAPI import facilities_api
+from Scheduling.SchedulingAPI import scheduling_api
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -14,6 +15,7 @@ app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
 
 app.register_blueprint(laundry_api, url_prefix="/laundry")
 app.register_blueprint(facilities_api, url_prefix="/facilities")
+app.register_blueprint(scheduling_api, url_prefix="/scheduling")
 
 
 @app.route("/")
