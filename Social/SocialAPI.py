@@ -38,26 +38,17 @@ def profiles():
                 "data": json.dumps(list(data), default=lambda o: str(o))
             }
             return make_response(response, 200)
+
         elif request.method == 'PUT':
             data = request.get_json()
+
             userID = str(data.get('userID'))
-
-            oldData = db.Profiles.find_one({"userID": userID})
-            if oldData is None:
-                return make_response("data not found", 404)
-
-            displayName = str(data.get('displayName')) if data.get(
-                'displayName') else oldData.get('displayName')
-            bio = str(data.get('bio')) if data.get(
-                'bio') else oldData.get('bio')
-            profilePictureUrl = str(data.get('profilePictureUrl')) if data.get(
-                'profilePictureUrl') else oldData.get('displayName')
-            block = int(data.get('block')) if data.get(
-                'block') else oldData.get('block')
-            telegramHandle = str(data.get('telegramHandle')) if data.get(
-                'telegramHandle') else oldData.get('telegramHandle')
-            modules = data.get('modules') if data.get(
-                'modules') else oldData.get('modules')
+            displayName = str(data.get('displayName'))
+            bio = str(data.get('bio'))
+            profilePictureUrl = str(data.get('profilePictureUrl'))
+            block = int(data.get('block'))
+            telegramHandle = str(data.get('telegramHandle'))
+            modules = data.get('modules')
 
             body = {
                 "userID": userID,
@@ -69,7 +60,8 @@ def profiles():
                 "modules": modules
             }
 
-            result = db.Profiles.update_one({"userID": userID}, {'$set': body})
+            result = db.Profiles.update_one(
+                {"userID": userID}, {'$set': body}, upsert=True)
 
             if int(result.matched_count) > 0:
                 response = {
@@ -107,9 +99,9 @@ def getUserPicture(userID):
 
     except Exception as e:
         # TODO don't catch all exceptions
-        response['status'] = "default picture returned"
-        response['data'] = {
-            'image': defaultProfilePictureUrl
+        response = {
+            "status": "failed",
+            "error": str(e)
         }
 
         return make_response(response, 200)
@@ -119,7 +111,11 @@ def getUserPicture(userID):
 @cross_origin(supports_credentials=True)
 def getUserProfile(userID):
     try:
-        data = db.Profiles.find({"userID": userID})
+        data = db.Profiles.find({"userID": userID}, {"_id": 0})
+        response = {
+            "data": list(data),
+            "status": "success"
+        }
     except Exception as e:
         response = {
             "status": "failed",
@@ -128,10 +124,6 @@ def getUserProfile(userID):
         print(e)
         return make_response(response, 400)
 
-    response = {
-        "data": json.dumps(list(data), default=lambda o: str(o)),
-        "status": "success"
-    }
     return make_response(response, 200)
 
 
@@ -141,21 +133,19 @@ def user():
     try:
         if request.method == 'PUT':
             data = request.get_json()
-            userID = str(data.get('userID'))
 
-            oldUser = db.User.find_one({"userID": userID})
-            passwordHash = str(data.get('passwordHash')) if data.get(
-                'passwordHash') else oldUser.get('passwordHash')
-            email = str(data.get('email')) if data.get(
-                'email') else oldUser.get('email')
+            userID = str(data.get('userID'))
+            passwordHash = str(data.get('passwordHash'))
+            email = str(data.get('email'))
 
             body = {
-                "userID": userID,
                 "passwordHash": passwordHash,
                 "email": email,
             }
 
-            result = db.User.update_one({"userID": userID}, {'$set': body})
+            result = db.User.update_one(
+                {"userID": userID}, {'$set': body}, upsert=True)
+
             if int(result.matched_count) > 0:
                 response = {
                     "message": "Event changed",
@@ -170,7 +160,13 @@ def user():
 
         elif request.method == 'DELETE':
             userID = request.args.get('userID')
-            db.User.delete_one({"userID": userID})
+            result = db.User.delete_one({"userID": userID})
+            if result.deleted_count == 0:
+                response = {
+                    "status": "failed",
+                    "error": "User not found"
+                }
+                return make_response(response, 404)
 
             return make_response({"status": "success"}, 200)
         elif request.method == 'POST':
@@ -260,65 +256,102 @@ def userIDtoName(userID):
 def posts():
     try:
         if request.method == 'GET':
-            # get all post that a user can view regardless of whether its official or not
-            # userID = str(request.args.get("userID"))
-            N = int(request.args.get('N')) if request.args.get('N') else 0
+            if request.args.get('postID') and request.args.get('userID'):
+                userID = request.args.get("userID")
+                postID = request.args.get("postID")
 
-            # friends = FriendsHelper(userID).get('friendList')
+                if postID:
+                    # TODO use mongoDB lookup to join the data instead
+                    data = db.Posts.find_one({"_id": ObjectId(postID)})
+                    name = db.Profiles.find_one(
+                        {"userID": str(data.get("userID"))}).get('displayName')
 
-            # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
-            # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]}
+                    if data != None:
+                        data = renamePost(data)
+                        data['name'] = name
+                        response = {
+                            "status": "success",
+                            "data": json.dumps(data, default=lambda o: str(o))
+                        }
+                        return make_response(response, 200)
+                    else:
+                        return make_response({"message": "No Data Found", "status": "failed"}, 404)
 
-            data = db.Posts.find(
-                {}, sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
+                elif userID:
+                    data = db.Posts.find({"userID": str(userID)})
+                    response = []
+                    for item in data:
+                        item['name'] = userIDtoName(item.get('userID'))
+                        item = renamePost(item)
+                        response.append(item)
 
-            # Pipeline is good, but OUR ATLAS FREE TIER DOES NOT ALLOW SORTING, SKIPPING AND LIMITING IN PIPELINE
+                    return make_response(
+                        {
+                            "data": json.dumps(response, default=lambda o: str(o)),
+                            "status": "success"
+                        },
+                        200)
 
-            # pipeline = [
-            #     {'sort': {'createdAt': -1}},
-            #     {'skip': N*5},
-            #     {'limit': 5},
-            #     {
-            #         '$lookup': {
-            #             'from': 'Profiles',
-            #             'localField': 'userID',
-            #             'foreignField': 'userID',
-            #             'as': 'profile'
-            #         }
-            #     },
-            #     {
-            #         '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
-            #     },
-            #     {
-            #         '$addFields': {
-            #             'profilePictureURI': "$profile.profilePictureUrl",
-            #             'name': '$profile.displayName'
-            #         }
-            #     },
-            #     {'$project': {'profile': 0}}
-            # ]
+            else:
+                # get all post that a user can view regardless of whether its official or not
+                # userID = str(request.args.get("userID"))
+                N = int(request.args.get('N')) if request.args.get('N') else 0
 
-            # data = db.Posts.aggregate(pipeline)
+                # friends = FriendsHelper(userID).get('friendList')
 
-            response = []
+                # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
+                # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]}
 
-            # for item in data:
-            #     response.append(item)
-            for item in data:
-                profile = db.Profiles.find_one(
-                    {'userID': item.get('userID')})
-                item['name'] = profile.get(
-                    'displayName') if profile != None else None
-                item['profilePictureURI'] = profile.get(
-                    'profilePictureUrl') if profile != None else None
-                item = renamePost(item)
-                response.append(item)
+                data = db.Posts.find(
+                    {}, sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
 
-            return make_response(
-                {
-                    "data": json.dumps(response, default=lambda o: str(o)),
-                    "status": "success"
-                }, 200)
+                # Pipeline is good, but OUR ATLAS FREE TIER DOES NOT ALLOW SORTING, SKIPPING AND LIMITING IN PIPELINE
+
+                # pipeline = [
+                #     {'sort': {'createdAt': -1}},
+                #     {'skip': N*5},
+                #     {'limit': 5},
+                #     {
+                #         '$lookup': {
+                #             'from': 'Profiles',
+                #             'localField': 'userID',
+                #             'foreignField': 'userID',
+                #             'as': 'profile'
+                #         }
+                #     },
+                #     {
+                #         '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
+                #     },
+                #     {
+                #         '$addFields': {
+                #             'profilePictureURI': "$profile.profilePictureUrl",
+                #             'name': '$profile.displayName'
+                #         }
+                #     },
+                #     {'$project': {'profile': 0}}
+                # ]
+
+                # data = db.Posts.aggregate(pipeline)
+
+                response = []
+
+                # for item in data:
+                #     response.append(item)
+                for item in data:
+                    profile = db.Profiles.find_one(
+                        {'userID': item.get('userID')})
+                    item['name'] = profile.get(
+                        'displayName') if profile != None else None
+                    item['profilePictureURI'] = profile.get(
+                        'profilePictureUrl') if profile != None else None
+                    item = renamePost(item)
+                    response.append(item)
+
+                return make_response(
+                    {
+                        "data": json.dumps(response, default=lambda o: str(o)),
+                        "status": "success"
+                    }, 200)
 
         elif request.method == 'DELETE':
             postID = request.args.get('postID')
@@ -395,50 +428,7 @@ def posts():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@social_api.route("/post/search", methods=['GET'])
-@cross_origin(supports_credentials=True)
-def getPostSpecific():
-    try:
-        userID = request.args.get("userID")
-        postID = request.args.get("postID")
-
-        if postID:
-            # TODO use mongoDB lookup to join the data instead
-            data = db.Posts.find_one({"_id": ObjectId(postID)})
-            name = db.Profiles.find_one(
-                {"userID": str(data.get("userID"))}).get('displayName')
-
-            if data != None:
-                data = renamePost(data)
-                data['name'] = name
-                response = {
-                    "status": "success",
-                    "data": json.dumps(data, default=lambda o: str(o))
-                }
-                return make_response(response, 200)
-            else:
-                return make_response({"message": "No Data Found", "status": "failed"}, 404)
-
-        elif userID:
-            data = db.Posts.find({"userID": str(userID)})
-            response = []
-            for item in data:
-                item['name'] = userIDtoName(item.get('userID'))
-                item = renamePost(item)
-                response.append(item)
-
-            return make_response(
-                {
-                    "data": json.dumps(response, default=lambda o: str(o)),
-                    "status": "success"
-                },
-                200)
-
-    except Exception as e:
-        return make_response({"err": str(e), "status": "failed"}, 400)
-
-
-@social_api.route("/post/<userID>", methods=['GET'])
+@social_api.route("/posts/<userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getPostById(userID):
     try:
@@ -477,7 +467,7 @@ def FriendsHelper(userID):
     return response
 
 
-@social_api.route("/post/friend", methods=['GET'])
+@social_api.route("/posts/friend", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getFriendsPostById():
     try:
@@ -511,7 +501,7 @@ def getFriendsPostById():
         return make_response({"err": str(e), "status": "failed"}, 400)
 
 
-@social_api.route("/post/official", methods=['GET'])
+@social_api.route("/posts/official", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getOfficialPosts():
     try:
