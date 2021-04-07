@@ -1,44 +1,28 @@
-
-from flask import Flask, request, jsonify, Response, make_response
-from flask_cors import CORS, cross_origin
-import pymongo
-import json
+from db import *
+from flask import Flask, render_template, flash, redirect, url_for, request, jsonify, make_response
 import os
+from datetime import datetime
 import time
-from bson.objectid import ObjectId
-import re
-import requests
+from flask_cors import cross_origin
+from flask import Blueprint
+import pymongo
+import sys
+sys.path.append("../db")
 
-app = Flask(__name__)
-CORS(app)
-app.config['CORS_HEADERS'] = 'Content-Type'
-
-DB_USERNAME = os.getenv('DB_USERNAME')
-DB_PWD = os.getenv('DB_PWD')
-# URL = "mongodb+srv://rhdevs-db-admin:{}@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority".format(DB_PWD)
-
-# client = pymongo.MongoClient(URL)
-# I understand that you do not to expose the implementation when using API when you return the error
-# but i think this causing a lot of confusion because the message is just failed without any proper further messages
-# I think for now its better to refactor the code to use default exception
-
-client = pymongo.MongoClient(
-    "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
-db = client["RHApp"]
-
+scheduling_api = Blueprint("scheduling", __name__)
 
 def renameEvent(event):
     event['eventID'] = event.pop('_id')
     return event
 
 
-@app.route("/")
+@scheduling_api.route("/")
 @cross_origin()
 def hello():
     return "Welcome the Raffles Hall Events server"
 
 
-@app.route("/timetable/<userID>", methods=["GET"])
+@scheduling_api.route("/timetable/<userID>", methods=["GET"])
 @cross_origin()
 def getUserTimetable(userID):
     try:
@@ -51,7 +35,7 @@ def getUserTimetable(userID):
     return make_response(response, 200)
 
 
-@app.route('/event/', methods=["GET"])
+@scheduling_api.route('/event/', methods=["GET"])
 @cross_origin()
 def getAllEvents():
     try:
@@ -62,7 +46,7 @@ def getAllEvents():
     return make_response(response, 200)
 
 
-@app.route('/event/private/', methods=["GET"])
+@scheduling_api.route('/event/private/', methods=["GET"])
 @cross_origin()
 def getAllPrivateEvents():
     try:
@@ -76,7 +60,7 @@ def getAllPrivateEvents():
     return make_response(response, 200)
 
 
-@app.route('/event/private/<userID>/<startTime>', methods=["GET"])
+@scheduling_api.route('/event/private/<userID>/<startTime>', methods=["GET"])
 @cross_origin()
 def getPrivateEventOfUserAfterTime(userID, startTime):
     try:
@@ -91,7 +75,7 @@ def getPrivateEventOfUserAfterTime(userID, startTime):
     return make_response(response, 200)
 
 
-@app.route('/event/public/<pagination>/<startTime>', methods=["GET"])
+@scheduling_api.route('/event/public/<pagination>/<startTime>', methods=["GET"])
 @cross_origin()
 def getPublicEventsPagination(pagination, startTime=0):
     try:
@@ -106,7 +90,7 @@ def getPublicEventsPagination(pagination, startTime=0):
     return make_response(response, 200)
 
 
-@app.route('/event/public/', methods=["GET"])
+@scheduling_api.route('/event/public/', methods=["GET"])
 @cross_origin()
 def getAllPublicEvents():
     try:
@@ -119,7 +103,7 @@ def getAllPublicEvents():
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
 
-@app.route('/event/public/afterTime/<startTime>', methods=["GET"])
+@scheduling_api.route('/event/public/afterTime/<startTime>', methods=["GET"])
 @cross_origin()
 def getPublicEventAfterTime(startTime):
     try:
@@ -131,7 +115,7 @@ def getPublicEventAfterTime(startTime):
     return make_response(response, 200)
 
 
-@app.route('/cca/', methods=["GET"])
+@scheduling_api.route('/cca/', methods=["GET"])
 @cross_origin()
 def getAllCCA():
     try:
@@ -142,8 +126,8 @@ def getAllCCA():
     return make_response(response, 200)
 
 
-@app.route('/event/ccaID/<int:ccaID>', methods=["GET"])
-@app.route('/event/ccaID/<int:ccaID>/<referenceTime>', methods=["GET"])
+@scheduling_api.route('/event/ccaID/<int:ccaID>', methods=["GET"])
+@scheduling_api.route('/event/ccaID/<int:ccaID>/<referenceTime>', methods=["GET"])
 @cross_origin()
 def getEventsCCA(ccaID, referenceTime=0):
     try:
@@ -161,7 +145,7 @@ def getEventsCCA(ccaID, referenceTime=0):
     return make_response(response, 200)
 
 
-@app.route('/event/eventID/<string:eventID>', methods=["GET"])
+@scheduling_api.route('/event/eventID/<string:eventID>', methods=["GET"])
 @cross_origin()
 def getEventsDetails(eventID):
     try:
@@ -175,7 +159,7 @@ def getEventsDetails(eventID):
     return make_response(response, 200)
 
 
-@app.route('/cca/<int:ccaID>', methods=["GET"])
+@scheduling_api.route('/cca/<int:ccaID>', methods=["GET"])
 @cross_origin()
 def getCCADetails(ccaID):
     try:
@@ -186,7 +170,7 @@ def getCCADetails(ccaID):
     return make_response(response)
 
 
-@app.route("/user_CCA/<string:userID>", methods=['GET'])
+@scheduling_api.route("/user_CCA/<string:userID>", methods=['GET'])
 @cross_origin()
 def getUserCCAs(userID):
     try:
@@ -198,7 +182,7 @@ def getUserCCAs(userID):
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
 
-@app.route("/user_event/<string:userID>/", methods=['GET'])
+@scheduling_api.route("/user_event/<string:userID>/", methods=['GET'])
 @cross_origin()
 def getUserAttendanceAll(userID):
     try:
@@ -212,7 +196,7 @@ def getUserAttendanceAll(userID):
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
 
-@app.route("/user_event/<userID>/<int:referenceTime>", methods=["GET"])
+@scheduling_api.route("/user_event/<userID>/<int:referenceTime>", methods=["GET"])
 @cross_origin()
 def getUserAttendance(userID, referenceTime):
     try:
@@ -236,7 +220,7 @@ def getUserAttendance(userID, referenceTime):
     return make_response(response, 200)
 
 
-@app.route("/user_event/<eventID>", methods=["GET"])
+@scheduling_api.route("/user_event/<eventID>", methods=["GET"])
 @cross_origin()
 def getEventAttendees(eventID):
     try:
@@ -248,7 +232,7 @@ def getEventAttendees(eventID):
     return make_response(response)
 
 
-@app.route("/user_CCA/<int:ccaID>", methods=["GET"])
+@scheduling_api.route("/user_CCA/<int:ccaID>", methods=["GET"])
 @cross_origin()
 def getCCAMembers(ccaID):
     try:
@@ -259,7 +243,7 @@ def getCCAMembers(ccaID):
     return make_response(response, 200)
 
 
-@app.route("/user_CCA/", methods=["GET"])
+@scheduling_api.route("/user_CCA/", methods=["GET"])
 @cross_origin()
 def getCCAMembersName():
     try:
@@ -313,7 +297,7 @@ def addDeletePermissions():
     return {"status": "success"}, 200
 
 
-@app.route("/event/", methods=['POST'])
+@scheduling_api.route("/event/", methods=['POST'])
 @cross_origin()
 def createEvent():
     try:
@@ -362,7 +346,7 @@ def createEvent():
     return make_response(response, 200)
 
 
-@app.route("/event/<eventID>", methods=['DELETE'])
+@scheduling_api.route("/event/<eventID>", methods=['DELETE'])
 @cross_origin()
 def deleteEvent(eventID):
     try:
@@ -373,7 +357,7 @@ def deleteEvent(eventID):
     return {"status": "success"}, 200
 
 
-@app.route("/event/", methods=['PUT'])
+@scheduling_api.route("/event/", methods=['PUT'])
 @cross_origin()
 def editEvent():
     try:
@@ -418,7 +402,7 @@ def editEvent():
     return make_response(response, 200)
 
 
-@app.route("/user_event/", methods=['POST', 'DELETE'])
+@scheduling_api.route("/user_event/", methods=['POST', 'DELETE'])
 @cross_origin()
 def editAttendance():
     try:
@@ -440,7 +424,7 @@ def editAttendance():
     return {"status": "success"}, 200
 
 
-@app.route("/nusmods/<userID>", methods=["GET"])
+@scheduling_api.route("/nusmods/<userID>", methods=["GET"])
 @cross_origin()
 def getMods(userID):
     try:
@@ -451,7 +435,7 @@ def getMods(userID):
     return make_response(response, 200)
 
 
-# @app.route("/nusmods/<userID>", methods=['DELETE'])
+# @scheduling_api.route("/nusmods/<userID>", methods=['DELETE'])
 # @cross_origin()
 # def deleteMods(userID):
 #     try:
@@ -462,7 +446,7 @@ def getMods(userID):
 #     return {"status": "success"}, 200
 
 
-@app.route("/nusmods/", methods=['DELETE'])
+@scheduling_api.route("/nusmods/", methods=['DELETE'])
 @cross_origin()
 def deleteOneMod():
     try:
@@ -491,7 +475,7 @@ def deleteOneMod():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@app.route("/nusmods", methods=['POST'])
+@scheduling_api.route("/nusmods", methods=['POST'])
 @cross_origin()
 def addMods():
     try:
@@ -512,7 +496,7 @@ def addMods():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@app.route("/nusmods/addNUSMods", methods=['POST'])
+@scheduling_api.route("/nusmods/addNUSMods", methods=['POST'])
 @cross_origin()
 def addNUSModsEvents():
 
@@ -582,6 +566,7 @@ def addNUSModsEvents():
                 "mods": indexed_output}  
                          
         db.NUSMods.update_one({"userID": userID}, {"$set": body}, upsert=True)
+        print(oneModuleArray)
         data = list(db.NUSMods.find_one({"userID": userID}))
         response = {"status": "success", "data": data}
     except Exception as e:
