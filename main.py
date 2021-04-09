@@ -7,6 +7,7 @@ import pymongo
 from Laundry.LaundryAPI import laundry_api
 from FacilityBooking.FacilitiesAPI import facilities_api
 from Scheduling.SchedulingAPI import scheduling_api
+from Authentication.auth import authentication_api
 
 app = Flask(__name__)
 cors = CORS(app)
