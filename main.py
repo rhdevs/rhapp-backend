@@ -16,7 +16,7 @@ app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
 app.register_blueprint(laundry_api, url_prefix="/laundry")
 app.register_blueprint(facilities_api, url_prefix="/facilities")
 app.register_blueprint(scheduling_api, url_prefix="/scheduling")
-
+app.register_blueprint(authentication_api, url_prefix="/auth")
 
 @app.route("/")
 def hello():
