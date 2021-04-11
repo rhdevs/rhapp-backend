@@ -7,12 +7,15 @@ import pymongo
 from Laundry.LaundryAPI import laundry_api
 from FacilityBooking.FacilitiesAPI import facilities_api
 from Scheduling.SchedulingAPI import scheduling_api
-from Authentication.auth import authentication_api
+from Authentication.AuthenticationAPI import authentication_api
+from db import *
 
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = "Content-Type"
-app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
+# TODO
+app.config['SECRET_KEY'] = AUTH_SECRET_KEY
+#app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
 
 app.register_blueprint(laundry_api, url_prefix="/laundry")
 app.register_blueprint(facilities_api, url_prefix="/facilities")
