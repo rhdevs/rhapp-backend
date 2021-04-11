@@ -1,3 +1,4 @@
+from db import *
 from flask import Flask, request, jsonify, Response, make_response
 from flask_cors import CORS, cross_origin
 import pymongo
@@ -7,26 +8,10 @@ import time
 import jwt
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
+from flask import Blueprint
+sys.path.append("../db")
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-# resources allowed to be accessed explicitly
-# response.headers.add("Access-Control-Allow-Origin", "*"), add this to all responses
-# if the cors still now working
-app.config['CORS_HEADERS'] = 'Content-Type'
-app.config['SECRET_KEY'] = os.getenv('AUTH_SECRET_KEY')
-
-DB_USERNAME = os.getenv('DB_USERNAME')
-DB_PWD = os.getenv('DB_PWD')
-URL = "mongodb+srv://rhdevs-db-admin:{}@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority".format(
-    DB_PWD)
-
-# client = pymongo.MongoClient(URL)
-# db = client["RHApp"]
-
-client = pymongo.MongoClient(
-    "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
-db = client["RHApp"]
+social_api = Blueprint("social", __name__)
 
 # When put/delete, run find first to make sure element is present
 
@@ -36,13 +21,13 @@ def renamePost(post):
     return post
 
 
-@app.route("/")
+@social_api.route("/")
 @cross_origin(supports_credentials=True)
 def hello():
     return "Welcome the Raffles Hall Social server"
 
 
-@app.route('/profile', methods=['GET', 'PUT'])
+@social_api.route('/profiles', methods=['GET', 'PUT'])
 @cross_origin(supports_credentials=True)
 def profiles():
     try:
@@ -53,26 +38,17 @@ def profiles():
                 "data": json.dumps(list(data), default=lambda o: str(o))
             }
             return make_response(response, 200)
+
         elif request.method == 'PUT':
             data = request.get_json()
+
             userID = str(data.get('userID'))
-
-            oldData = db.Profiles.find_one({"userID": userID})
-            if oldData is None:
-                return make_response("data not found", 404)
-
-            displayName = str(data.get('displayName')) if data.get(
-                'displayName') else oldData.get('displayName')
-            bio = str(data.get('bio')) if data.get(
-                'bio') else oldData.get('bio')
-            profilePictureUrl = str(data.get('profilePictureUrl')) if data.get(
-                'profilePictureUrl') else oldData.get('displayName')
-            block = int(data.get('block')) if data.get(
-                'block') else oldData.get('block')
-            telegramHandle = str(data.get('telegramHandle')) if data.get(
-                'telegramHandle') else oldData.get('telegramHandle')
-            modules = data.get('modules') if data.get(
-                'modules') else oldData.get('modules')
+            displayName = str(data.get('displayName'))
+            bio = str(data.get('bio'))
+            profilePictureUrl = str(data.get('profilePictureUrl'))
+            block = int(data.get('block'))
+            telegramHandle = str(data.get('telegramHandle'))
+            modules = data.get('modules')
 
             body = {
                 "userID": userID,
@@ -84,7 +60,8 @@ def profiles():
                 "modules": modules
             }
 
-            result = db.Profiles.update_one({"userID": userID}, {'$set': body})
+            result = db.Profiles.update_one(
+                {"userID": userID}, {'$set': body}, upsert=True)
 
             if int(result.matched_count) > 0:
                 response = {
@@ -105,7 +82,7 @@ def profiles():
         return make_response(response, 400)
 
 
-@app.route("/profile/picture/<string:userID>", methods=['GET'])
+@social_api.route("/profile/picture/<string:userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getUserPicture(userID):
     response = {}
@@ -122,19 +99,23 @@ def getUserPicture(userID):
 
     except Exception as e:
         # TODO don't catch all exceptions
-        response['status'] = "default picture returned"
-        response['data'] = {
-            'image': defaultProfilePictureUrl
+        response = {
+            "status": "failed",
+            "error": str(e)
         }
 
         return make_response(response, 200)
 
 
-@app.route("/profile/<string:userID>")
+@social_api.route("/profile/<string:userID>")
 @cross_origin(supports_credentials=True)
 def getUserProfile(userID):
     try:
-        data = db.Profiles.find({"userID": userID})
+        data = db.Profiles.find({"userID": userID}, {"_id": 0})
+        response = {
+            "data": list(data),
+            "status": "success"
+        }
     except Exception as e:
         response = {
             "status": "failed",
@@ -143,34 +124,28 @@ def getUserProfile(userID):
         print(e)
         return make_response(response, 400)
 
-    response = {
-        "data": json.dumps(list(data), default=lambda o: str(o)),
-        "status": "success"
-    }
     return make_response(response, 200)
 
 
-@app.route("/user", methods=['PUT', 'DELETE', 'POST'])
+@social_api.route("/user", methods=['PUT', 'DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def user():
     try:
         if request.method == 'PUT':
             data = request.get_json()
-            userID = str(data.get('userID'))
 
-            oldUser = db.User.find_one({"userID": userID})
-            passwordHash = str(data.get('passwordHash')) if data.get(
-                'passwordHash') else oldUser.get('passwordHash')
-            email = str(data.get('email')) if data.get(
-                'email') else oldUser.get('email')
+            userID = str(data.get('userID'))
+            passwordHash = str(data.get('passwordHash'))
+            email = str(data.get('email'))
 
             body = {
-                "userID": userID,
                 "passwordHash": passwordHash,
                 "email": email,
             }
 
-            result = db.User.update_one({"userID": userID}, {'$set': body})
+            result = db.User.update_one(
+                {"userID": userID}, {'$set': body}, upsert=True)
+
             if int(result.matched_count) > 0:
                 response = {
                     "message": "Event changed",
@@ -185,7 +160,13 @@ def user():
 
         elif request.method == 'DELETE':
             userID = request.args.get('userID')
-            db.User.delete_one({"userID": userID})
+            result = db.User.delete_one({"userID": userID})
+            if result.deleted_count == 0:
+                response = {
+                    "status": "failed",
+                    "error": "User not found"
+                }
+                return make_response(response, 404)
 
             return make_response({"status": "success"}, 200)
         elif request.method == 'POST':
@@ -210,7 +191,7 @@ def user():
         return {"err": str(e)}, 400
 
 
-@app.route("/user/<userID>")
+@social_api.route("/user/<userID>")
 @cross_origin(supports_credentials=True)
 def getUserDetails(userID):
     try:
@@ -270,70 +251,107 @@ def userIDtoName(userID):
     return name
 
 
-@ app.route("/post", methods=['DELETE', 'POST', 'GET', 'PUT'])
+@ social_api.route("/posts", methods=['DELETE', 'POST', 'GET', 'PUT'])
 @ cross_origin(supports_credentials=True)
-def post():
+def posts():
     try:
         if request.method == 'GET':
-            # get all post that a user can view regardless of whether its official or not
-            # userID = str(request.args.get("userID"))
-            N = int(request.args.get('N')) if request.args.get('N') else 0
+            if request.args.get('postID') and request.args.get('userID'):
+                userID = request.args.get("userID")
+                postID = request.args.get("postID")
 
-            # friends = FriendsHelper(userID).get('friendList')
+                if postID:
+                    # TODO use mongoDB lookup to join the data instead
+                    data = db.Posts.find_one({"_id": ObjectId(postID)})
+                    name = db.Profiles.find_one(
+                        {"userID": str(data.get("userID"))}).get('displayName')
 
-            # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
-            # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]}
+                    if data != None:
+                        data = renamePost(data)
+                        data['name'] = name
+                        response = {
+                            "status": "success",
+                            "data": json.dumps(data, default=lambda o: str(o))
+                        }
+                        return make_response(response, 200)
+                    else:
+                        return make_response({"message": "No Data Found", "status": "failed"}, 404)
 
-            data = db.Posts.find(
-                {}, sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
+                elif userID:
+                    data = db.Posts.find({"userID": str(userID)})
+                    response = []
+                    for item in data:
+                        item['name'] = userIDtoName(item.get('userID'))
+                        item = renamePost(item)
+                        response.append(item)
 
-            # Pipeline is good, but OUR ATLAS FREE TIER DOES NOT ALLOW SORTING, SKIPPING AND LIMITING IN PIPELINE
+                    return make_response(
+                        {
+                            "data": json.dumps(response, default=lambda o: str(o)),
+                            "status": "success"
+                        },
+                        200)
 
-            # pipeline = [
-            #     {'sort': {'createdAt': -1}},
-            #     {'skip': N*5},
-            #     {'limit': 5},
-            #     {
-            #         '$lookup': {
-            #             'from': 'Profiles',
-            #             'localField': 'userID',
-            #             'foreignField': 'userID',
-            #             'as': 'profile'
-            #         }
-            #     },
-            #     {
-            #         '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
-            #     },
-            #     {
-            #         '$addFields': {
-            #             'profilePictureURI': "$profile.profilePictureUrl",
-            #             'name': '$profile.displayName'
-            #         }
-            #     },
-            #     {'$project': {'profile': 0}}
-            # ]
+            else:
+                # get all post that a user can view regardless of whether its official or not
+                # userID = str(request.args.get("userID"))
+                N = int(request.args.get('N')) if request.args.get('N') else 0
 
-            # data = db.Posts.aggregate(pipeline)
+                # friends = FriendsHelper(userID).get('friendList')
 
-            response = []
+                # TODO once we have enough users, use the query below instead so we do not see the whole universe's posts
+                # query = {"$or": [{"userID": {"$in": friends}}, {"isOfficial": True}, {"userID": userID}]}
 
-            # for item in data:
-            #     response.append(item)
-            for item in data:
-                profile = db.Profiles.find_one(
-                    {'userID': item.get('userID')})
-                item['name'] = profile.get(
-                    'displayName') if profile != None else None
-                item['profilePictureURI'] = profile.get(
-                    'profilePictureUrl') if profile != None else None
-                item = renamePost(item)
-                response.append(item)
+                data = db.Posts.find(
+                    {}, sort=[('createdAt', pymongo.DESCENDING)]).skip(N*5).limit(5)
 
-            return make_response(
-                {
-                    "data": json.dumps(response, default=lambda o: str(o)),
-                    "status": "success"
-                }, 200)
+                # Pipeline is good, but OUR ATLAS FREE TIER DOES NOT ALLOW SORTING, SKIPPING AND LIMITING IN PIPELINE
+
+                # pipeline = [
+                #     {'sort': {'createdAt': -1}},
+                #     {'skip': N*5},
+                #     {'limit': 5},
+                #     {
+                #         '$lookup': {
+                #             'from': 'Profiles',
+                #             'localField': 'userID',
+                #             'foreignField': 'userID',
+                #             'as': 'profile'
+                #         }
+                #     },
+                #     {
+                #         '$unwind': {'path': '$profile', 'preserveNullAndEmptyArrays': True}
+                #     },
+                #     {
+                #         '$addFields': {
+                #             'profilePictureURI': "$profile.profilePictureUrl",
+                #             'name': '$profile.displayName'
+                #         }
+                #     },
+                #     {'$project': {'profile': 0}}
+                # ]
+
+                # data = db.Posts.aggregate(pipeline)
+
+                response = []
+
+                # for item in data:
+                #     response.append(item)
+                for item in data:
+                    profile = db.Profiles.find_one(
+                        {'userID': item.get('userID')})
+                    item['name'] = profile.get(
+                        'displayName') if profile != None else None
+                    item['profilePictureURI'] = profile.get(
+                        'profilePictureUrl') if profile != None else None
+                    item = renamePost(item)
+                    response.append(item)
+
+                return make_response(
+                    {
+                        "data": json.dumps(response, default=lambda o: str(o)),
+                        "status": "success"
+                    }, 200)
 
         elif request.method == 'DELETE':
             postID = request.args.get('postID')
@@ -410,50 +428,7 @@ def post():
         return {"err": str(e), "status": "failed"}, 400
 
 
-@app.route("/post/search", methods=['GET'])
-@cross_origin(supports_credentials=True)
-def getPostSpecific():
-    try:
-        userID = request.args.get("userID")
-        postID = request.args.get("postID")
-
-        if postID:
-            # TODO use mongoDB lookup to join the data instead
-            data = db.Posts.find_one({"_id": ObjectId(postID)})
-            name = db.Profiles.find_one(
-                {"userID": str(data.get("userID"))}).get('displayName')
-
-            if data != None:
-                data = renamePost(data)
-                data['name'] = name
-                response = {
-                    "status": "success",
-                    "data": json.dumps(data, default=lambda o: str(o))
-                }
-                return make_response(response, 200)
-            else:
-                return make_response({"message": "No Data Found", "status": "failed"}, 404)
-
-        elif userID:
-            data = db.Posts.find({"userID": str(userID)})
-            response = []
-            for item in data:
-                item['name'] = userIDtoName(item.get('userID'))
-                item = renamePost(item)
-                response.append(item)
-
-            return make_response(
-                {
-                    "data": json.dumps(response, default=lambda o: str(o)),
-                    "status": "success"
-                },
-                200)
-
-    except Exception as e:
-        return make_response({"err": str(e), "status": "failed"}, 400)
-
-
-@app.route("/post/<userID>", methods=['GET'])
+@social_api.route("/posts/<userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getPostById(userID):
     try:
@@ -492,7 +467,7 @@ def FriendsHelper(userID):
     return response
 
 
-@app.route("/post/friend", methods=['GET'])
+@social_api.route("/posts/friend", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getFriendsPostById():
     try:
@@ -526,7 +501,7 @@ def getFriendsPostById():
         return make_response({"err": str(e), "status": "failed"}, 400)
 
 
-@app.route("/post/official", methods=['GET'])
+@social_api.route("/posts/official", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getOfficialPosts():
     try:
@@ -564,7 +539,7 @@ Friends API
 '''
 
 
-@app.route("/friend", methods=['DELETE', 'POST'])
+@social_api.route("/friend", methods=['DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def createDeleteFriend():
     try:
@@ -622,7 +597,7 @@ def createDeleteFriend():
         return make_response({"err": str(e), "status": "failed"}, 400)
 
 
-@app.route("/friend/<userID>", methods=["GET"])
+@social_api.route("/friend/<userID>", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def getAllFriends(userID):
     try:
@@ -648,7 +623,7 @@ def getAllFriends(userID):
 
 # Unused route
 # TODO verb here think of what might be better
-@app.route("/friend/check", methods=["GET"])
+@social_api.route("/friend/check", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def checkFriend():
     userOne = request.args.get('userIDOne')
@@ -681,7 +656,7 @@ def checkFriend():
         return make_response(response, 200)
 
 
-@app.route("/search", methods=["GET"])
+@social_api.route("/search", methods=["GET"])
 @cross_origin(supports_credentials=True)
 def search():
     # a function to search all events, facilities and profiles
@@ -714,7 +689,7 @@ def search():
 
 
 # Unused route
-@app.route("/image/<string:imageName>", methods=['GET', 'PUT', 'DELETE', 'POST'])
+@social_api.route("/image/<string:imageName>", methods=['GET', 'PUT', 'DELETE', 'POST'])
 @cross_origin(supports_credentials=True)
 def images(imageName):
     try:
@@ -778,7 +753,7 @@ If successful return 200, else return 500
 """
 
 
-@app.route('/auth/register', methods=['POST'])
+@social_api.route('/auth/register', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def register():
     try:
@@ -824,7 +799,7 @@ If true, create session, return JWT to client, else return 500.
 """
 
 
-@app.route('/auth/login', methods=['POST'])
+@social_api.route('/auth/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
     req = request.get_json()
@@ -838,7 +813,7 @@ def login():
     creationDate = datetime.now()
     db.Session.update_one({'userID': userID, 'passwordHash': passwordHash}, {'$set': {
         'userID': userID, 'passwordHash': passwordHash, 'createdAt': creationDate}}, upsert=True)
-
+    # Not sure if this still works, need to check (the .app)
     token = jwt.encode({'userID': userID,
                         'passwordHash': passwordHash
                         }, app.config['SECRET_KEY'], algorithm="HS256")
@@ -894,7 +869,7 @@ Successful authentication will return the 200 status code below. Any other error
 """
 
 
-@app.route('/auth/protected', methods=['GET'])
+@social_api.route('/auth/protected', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_for_token
 def protected(currentUser):
@@ -908,7 +883,7 @@ Delete the session entry
 
 
 # Unused route
-@app.route('/auth/logout', methods=['GET'])
+@social_api.route('/auth/logout', methods=['GET'])
 @cross_origin(supports_credentials=True)
 def logout():
     userID = request.args.get('userID')
@@ -917,8 +892,3 @@ def logout():
     except:
         return jsonify({'message': 'An error occurred'}), 500
     return jsonify({'message': 'You have been successfully logged out'}), 200
-
-
-if __name__ == "__main__":
-    app.run(threaded=True, debug=True)
-    # app.run('0.0.0.0', port=8080)
