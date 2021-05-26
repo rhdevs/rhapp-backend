@@ -103,9 +103,9 @@ def add_booking():
 
         conflict = list(db.Bookings.find({"facilityID": formData.get("facilityID"),
                                           "endTime": {
-            "$gte": formData.get('startTime')},
+            "$gt": formData.get('startTime')},
             "startTime": {
-            "$lte": formData.get('endTime')}
+            "$lt": formData.get('endTime')}
         }, {"_id": 0}))
 
         if (len(conflict) != 0):
