@@ -1,22 +1,21 @@
+from db import *
 from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS, cross_origin
+import os
+import sys
 import jwt
 import datetime
 import pymongo
 from functools import wraps
+from flask import Blueprint
+from flask import current_app
+sys.path.append("../db")
 
-#MongoDB
-myclient = client = pymongo.MongoClient("mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
-db = myclient["RHApp"]
+authentication_api = Blueprint("authentication", __name__)
 
-app = Flask("rhapp")
-app.config['SECRET_KEY'] = 'secretkeyvalue' # will replace with flaskenv variable in the future
-
-#CORS(app, origins=CROSS_ORIGINS_LIST, headers=['Content-Type'], 
-#         expose_headers=['Access-Control-Allow-Origin'], supports_credentials=True)
-
+# Uncomment the create_index command if you need to recreate the expiration index for Session collection
 # https://stackoverflow.com/questions/54750273/pymongo-and-ttl-wrong-expiration-time
-db.Session.create_index("createdAt", expireAfterSeconds = 120)
+# db.Session.create_index("createdAt", expireAfterSeconds = 120)
 
 """
 Decorative function: 
@@ -33,7 +32,7 @@ def check_for_token(func):
         
         #verify the user
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
             currentUser = db.User.find_one({'userID': data['userID'], 'passwordHash': data['passwordHash']})
             currentUsername = currentUser['userID']
         except Exception as e: 
@@ -63,7 +62,7 @@ Register route:
 Within POST request, obtain userID, password and email and add to User table in Mongo, if userID has not been registered previously
 If successful return 200, else return 500
 """
-@app.route('/auth/register', methods=['POST'])
+@authentication_api.route('/register', methods=['POST'])
 def register():
     try:
     #extract userID, password and email
@@ -92,9 +91,10 @@ def register():
                                "telegramHandle": telegramHandle, 
                                "profilePictureURI": "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=identicon" 
                                })
-    except:
+    except Exception as e:
         return jsonify({'message': 'An error was encountered.'}), 500
     return jsonify({'message': 'User successfully created!'}), 200
+
 
 
     
@@ -103,7 +103,7 @@ Login route:
 Within POST request, verify userID and passwordHash are valid.
 If true, create session, return JWT to client, else return 500.
 """
-@app.route('/auth/login', methods=['POST'])
+@authentication_api.route('/login', methods=['POST'])
 def login():
     req = request.get_json()
     userID = req['userID']
@@ -118,9 +118,8 @@ def login():
     #generate JWT (note need to install PyJWT https://stackoverflow.com/questions/33198428/jwt-module-object-has-no-attribute-encode)
     token = jwt.encode({'userID': userID,
                         'passwordHash': passwordHash #to change timedelta to 15 minutes in production
-                        }, app.config['SECRET_KEY']
+                        }, current_app.config['SECRET_KEY']
                         , algorithm="HS256")
-    
     return jsonify({'token': token}), 200
 
 
@@ -130,7 +129,7 @@ Protected route:
 Acts as gatekeeper; can only access requested resource if you are authenticated ie valid session
 Successful authentication will return the 200 status code below. Any other errors will be as reflected in the wrapper function.
 """
-@app.route('/auth/protected', methods=['GET'])
+@authentication_api.route('/protected', methods=['GET'])
 @check_for_token
 def protected(currentUser):
     return jsonify({'message': 'Successfully logged in. Redirecting.'}), 200
@@ -141,7 +140,7 @@ def protected(currentUser):
 Logout route:
 Delete the session entry
 """
-@app.route('/auth/logout', methods=['GET'])
+@authentication_api.route('/logout', methods=['GET'])
 def logout():
     userID = request.args.get('userID')
     try:
@@ -149,9 +148,3 @@ def logout():
     except:
         return jsonify({'message': 'An error occurred'}), 500
     return jsonify({'message': 'You have been successfully logged out'}), 200
-
-
-
-# Run the example
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)

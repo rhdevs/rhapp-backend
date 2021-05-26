@@ -1,178 +1,130 @@
+from db import *
 from flask import Flask, render_template, flash, redirect, url_for, request, jsonify, make_response
 import os
-from pymongo import MongoClient
-import pymongo
-from pprint import pprint
 from datetime import datetime
-from bson.json_util import dumps
-import json
 import time
-from flask_cors import CORS, cross_origin
-from pprint import pprint
+from flask_cors import cross_origin
 from flask import Blueprint
+import pymongo
+import sys
+sys.path.append("../db")
 
-laundry_api = Blueprint("laundry_api", __name__)
-
-app = Flask(__name__)
-cors = CORS(app)
-app.config['CORS_HEADERS'] = "Content-Type"
-# app.config.from_object(os.environ['APP_SETTINGS'])
-
-client = MongoClient(
-    "mongodb+srv://rhdevs-db-admin:rhdevs-admin@cluster0.0urzo.mongodb.net/RHApp?retryWrites=true&w=majority")
-db = client.RHApp
+laundry_api = Blueprint("laundry", __name__)
 
 
-@app.route('/', methods=['GET'])
+@laundry_api.route('/', methods=['GET'])
 @cross_origin(supports_credentials=True)
 def home_page():
-    # landing page
-    # return make_response(render_template("index.html"), 200);
-    return make_response("Laundry API", 200)
+    try:
+        response = {
+            "status": "success",
+            "data": {
+                "message": "Hi People, this is Laundry API "
+            }
+        }
+
+        return make_response(response, 200)
+    except Exception as e:
+        response = {"err": str(e), "status": "failed"}
+        return make_response(response, 400)
 
 
-@app.route('/location', methods=['GET'])
+@laundry_api.route('/location', methods=['GET'])
 @cross_origin(supports_credentials=True)
 def all_location():
     try:
-        all_location = db.LaundryLocation.find()
-        return make_response(json.dumps(list(all_location), default=lambda o: str(o)), 200)
-    except Exception as e:
-        return make_response({"err": str(e)}, 400)
+        all_location = list(db.LaundryLocation.find({}, {'_id': 0}))
+        response = {
+            "status": "success",
+            "data": {
+                "locations": all_location
+            }
+        }
 
-
-@app.route('/location/<int:block_num>', methods=['GET'])
-@cross_origin(supports_credentials=True)
-def location(block_num):
-    try:
-        block_info = dumps(db.LaundryLocation.find({'block': block_num}))
-        return make_response(block_info, 200)
+        return make_response(response, 200)
     except Exception as e:
-        return make_response({"err": str(e)}, 400)
+        response = {"err": str(e), "status": "failed"}
+        return make_response(response, 400)
 
 
 def SweepAll():
     # function to do lazy deletion of all the laundry machines after 15 mins
     # Also do lazy update when duration + starttime of laundry is finished, change from In Use --> Uncollected
     # I assume since there are only 74 machines, sweeping 74 machines would be pretty fast for each call
-    all_machines = db.LaundryMachine.find()
+    # all_machines = db.LaundryMachine.find({}, {'_id': 0})
     # this one can optimize the query using if else inside the pymongo itself and in instead of update one by one
-    for machine in all_machines:
-        # print(machine.get('duration'));
-        startTime = 0 if machine.get(
-            'startTime') == None else machine.get('startTime')
-        expiryTime = startTime + int(machine.get('duration'))
-        currentTime = datetime.now().timestamp()
 
-        status = machine.get('job')
-        myquery = {
-            'machineID': machine.get("machineID")
-        }
+    currentTime = datetime.now().timestamp()
 
-        if(expiryTime < currentTime and status == "Reserved"):
-            # reset the duration
-            data_body = {'$set':
-                         {'duration': 0,
-                          "job": "Available"}
-                         }
-            try:
-                result = db.LaundryMachine.update_one(myquery, data_body)
-            except Exception as e:
-                return str(e) + " : Update " + str(machine.get("machineID")) + " failed"
-        elif (expiryTime < currentTime and status == "In Use"):
-            # reset the duration
-            data_body = {'$set':
-                         {'duration': 0,
-                          "job": "Uncollected"}
-                         }
-            try:
-                result = db.LaundryMachine.update_one(myquery, data_body)
-            except Exception as e:
-                return str(e) + " : Update " + str(machine.get("machineID")) + " failed"
+    try:
+        db.LaundryMachine.aggregate(
+            [
+                {'$project': {'expiryTime': {
+                    '$add': ['$startTime', '$duration']}}}
+            ]
+        )
 
-    return True
+        db.LaundryMachine.update(
+            {'expiryTime': {'$gte': '$currentTime'},
+             'status': {'eq': 'Reserved'}
+             },
+            {'$set': {'status': 'Available', 'duration': 0}}
+        )
 
+        db.LaundryMachine.update(
+            {'expiryTime': {'$gte': '$currentTime'},
+             'status': {'eq': 'In Use'}
+             },
+            {'$set': {'status': 'Uncollected', 'duration': 0}}
+        )
+
+        return True
+    except Exception as e:
+        raise Exception("Sweeping Failed " + str(e))
 
 db.LaundryMachine.create_index('userID')
 
 
-@app.route('/laundry/machine', methods=['GET', 'POST'])
-@cross_origin(supports_credentials=True)
-def laundry_by_location():
-    try:
-        if request.method == 'GET':
-            job = request.args.get('job')
-            locationID = request.args.get('locationID')
-            type = request.args.get('type')
-            machineID = request.args.get('machineID')
+@ laundry_api.route('/laundryMachines', methods=['GET'])
+def laundry_all():
+    if request.method == 'GET':
+        try:
             print("Just Sweep : " + str(SweepAll()))
-            # actually pretty not efficient, can optimize by lazily deleting and updating only those that wants to be returned
 
-            defaultProfilePictureUrl = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"
+            laundryMachines = list(db.LaundryMachine.find({}, {'_id': 0}))
+            response = {
+                "status": "success",
+                "data": {
+                    "laundryMachines": laundryMachines
+                }
+            }
+            return make_response(response, 200)
 
-            if machineID:
-                laundry_info = dumps(
-                    db.LaundryMachine.find_one({'machineID': machineID}))
-                return make_response(laundry_info, 200)
-            elif locationID:
-                pipeline = [
-                    {'$match': {
-                        'locationID': locationID
-                    }
-                    },
-                    {'$lookup': {
-                        'from': 'Profiles',
-                        'localField': 'userID',
-                        'foreignField': 'userID',
-                        'as': 'profile'
-                    }
-                    }
-                ]
+        except Exception as e:
+            response = {"err": str(e), "status": "failed"}
+            return make_response(response, 400)
 
-                response = {"data": []}
-
-                for item in db.LaundryMachine.aggregate(pipeline):
-                    # print(item["profile"])
-                    if (len(item["profile"]) != 0):
-                        item["userImage"] = item["profile"][0].get(
-                            "profilePictureUrl")
-                    else:
-                        item["userImage"] = defaultProfilePictureUrl
-
-                    del item["profile"]
-                    response["data"].append(item)
-
-                return make_response(response, 200)
-            elif job and type:
-                laundry_info = dumps(db.LaundryMachine.find(
-                    {'job': job, 'type': type}))
-                return make_response(laundry_info, 200)
-            elif type:
-                laundry_info = dumps(db.LaundryMachine.find({'type': type}))
-                return make_response(laundry_info, 200)
-            elif job:
-                laundry_info = dumps(db.LaundryMachine.find())
-                return make_response(laundry_info, 200)
-            else:
-                return make_response(dumps(db.LaundryMachine.find()), 200)
-
-        elif request.method == 'POST':
+    elif request.method == 'POST':
+        try:
             data = request.get_json()
-            # it is possible to change into JSON format, using request.json to check
             job = str(data.get("job"))
             machineID = str(data.get("machineID"))
             userID = str(data.get("userID"))
             currentDuration = None if data.get(
                 'currentDuration') is None else int(data.get('currentDuration'))
+        except Exception as e:
+            response = {"err": str(
+                "argument supplied is invalid, should have job, machineID and userID"), "status": "failed"}
+            return make_response(response, 400)
 
-            myquery = {
-                'machineID': machineID
-            }
+        myquery = {
+            'machineID': machineID
+        }
 
-            currMachine = db.LaundryMachine.find_one({'machineID': machineID})
+        currMachine = db.LaundryMachine.find_one({'machineID': machineID})
+        status = currMachine.get("job")
 
-            status = currMachine.get("job")
-
+        try:
             if status == "Available" and job == 'None':
                 # if status is Available, change the job to In Use
                 # create a new entry in the laundryJob collections
@@ -183,14 +135,13 @@ def laundry_by_location():
 
                 data_body = {'$set':
                              {'job': "Reserved",
-                                 'jobID': newJobID,
-                                 'userID': userID,
-                                 'duration': 15 * 60,  # fix to 15 minutes
-                                 'startTime': datetime.now().timestamp()}
+                              'jobID': newJobID,
+                              'userID': userID,
+                              'duration': 15 * 60,  # fix to 15 minutes
+                              'startTime': datetime.now().timestamp()}
                              }
 
-                result = db.LaundryMachine.update_one(myquery, data_body)
-
+                db.LaundryMachine.update_one(myquery, data_body)
                 db.LaundryJob.insert_one({
                     "machineID": str(machineID),
                     "userID": userID,
@@ -199,8 +150,11 @@ def laundry_by_location():
                     "jobHistory": ["Reserved"]
                 })
 
-                response = {}
-                response["message"] = "Successfully create new job and change from Available to Reserved"
+                response = {
+                    "status": "success",
+                    "data": {}
+                }
+
                 return make_response(response, 200)
 
             elif status == "Available" and (job not in ['Broken']):
@@ -220,9 +174,8 @@ def laundry_by_location():
                                  'startTime': datetime.now().timestamp()}
                              }
 
-                result = db.LaundryMachine.update_one(myquery, data_body)
-
-                jobUpdate = db.LaundryJob.update_one(
+                db.LaundryMachine.update_one(myquery, data_body)
+                db.LaundryJob.update_one(
                     {'jobID': int(jobID)},
                     {'$push': {
                         "actionTimeHistory": datetime.now().timestamp(),
@@ -230,8 +183,10 @@ def laundry_by_location():
                     }}
                 )
 
-                response = {}
-                response["message"] = "Successfully Completed the job"
+                response = {
+                    "status": "success",
+                    "data": {}
+                }
 
                 return make_response(response, 200)
 
@@ -243,10 +198,12 @@ def laundry_by_location():
                                  'startTime': datetime.now().timestamp()}
                              }
 
-                result = db.LaundryMachine.update_one(myquery, data_body)
+                db.LaundryMachine.update_one(myquery, data_body)
 
-                response = {}
-                response["message"] = "Successfully change the machine to Broken"
+                response = {
+                    "status": "success",
+                    "data": {}
+                }
 
                 return make_response(response, 200)
 
@@ -263,8 +220,8 @@ def laundry_by_location():
 
                 jobID = db.LaundryMachine.find_one(
                     {'machineID': machineID}).get("jobID")
-                result = db.LaundryMachine.update_one(myquery, data_body)
-                jobUpdate = db.LaundryJob.update_one(
+                db.LaundryMachine.update_one(myquery, data_body)
+                db.LaundryJob.update_one(
                     {'jobID': int(jobID)},
                     {'$push': {
                         "actionTimeHistory": datetime.now().timestamp(),
@@ -272,8 +229,10 @@ def laundry_by_location():
                     }}
                 )
 
-                response = {}
-                response["message"] = "Successfully update job from Reserved to In Use"
+                response = {
+                    "status": "success",
+                    "data": {}
+                }
 
                 return make_response(response, 200)
 
@@ -287,9 +246,8 @@ def laundry_by_location():
 
                 jobID = db.LaundryMachine.find_one(
                     {'machineID': machineID}).get("jobID")
-                result = db.LaundryMachine.update_one(myquery, data_body)
-
-                jobUpdate = db.LaundryJob.update_one(
+                db.LaundryMachine.update_one(myquery, data_body)
+                db.LaundryJob.update_one(
                     {'jobID': int(jobID)},
                     {'$push': {
                         "actionTimeHistory": datetime.now().timestamp(),
@@ -297,8 +255,10 @@ def laundry_by_location():
                     }}
                 )
 
-                response = {}
-                response["message"] = "Successfully alerted the job"
+                response = {
+                    "status": "success",
+                    "data": {}
+                }
 
                 return make_response(response, 200)
 
@@ -312,9 +272,8 @@ def laundry_by_location():
                                  'startTime': datetime.now().timestamp()}
                              }
 
-                result = db.LaundryMachine.update_one(myquery, data_body)
-
-                jobUpdate = db.LaundryJob.update_one(
+                db.LaundryMachine.update_one(myquery, data_body)
+                db.LaundryJob.update_one(
                     {'jobID': int(jobID)},
                     {'$push': {
                         "actionTimeHistory": datetime.now().timestamp(),
@@ -322,55 +281,84 @@ def laundry_by_location():
                     }}
                 )
 
-                response = {}
-                response["message"] = "Successfully Cancelled and Reset the job"
+                response = {
+                    "status": "success",
+                    "data": {}
+                }
 
-                return make_response("Successfully Cancelled and Reset the job", 200)
+                return make_response(response, 200)
             else:
-                response = {}
-                response["message"] = "command not recognized"
-
-                return make_response("command not recognized", 400)
-    except Exception as e:
-        return {"err": str(e)}, 400
+                raise Exception("command not recognized")
+        except Exception as e:
+            response = {"err": str(e), "status": "failed"}
+            return make_response(response, 400)
 
 
-@app.route('/laundry/machine/startTime', methods=['GET'])
-@cross_origin(supports_credentials=True)
-def getStartTime():
-    response = {}
+@ laundry_api.route('/laundryMachines/<int:machineID>', methods=['GET'])
+@ cross_origin(supports_credentials=True)
+def laundry_by_id(machineID):
     try:
-        machineID = request.args.get('machineID')
-        if machineID is None:
-            raise Exception(
-                "machine ID not provided as URL parameter, use ?machineID=...")
-
-        machine = db.LaundryMachine.find_one(
-            {'machineID': machineID}, {'job': 1, 'startTime': 1})
-
-        if machine.get("job") not in ['Reserved', 'In Use']:
-            raise Exception(
-                "Only can fetch start time when the machine is Reserved or In Use")
-
-        response['status'] = 'success'
-        response['data'] = {
-            'startTime': machine.get("startTime")
+        laundry_info = db.LaundryMachine.find_one(
+            {'machineID': machineID}, {'_id': 0})
+        response = {
+            "status": "success",
+            "data": {
+                "laundry_info": laundry_info
+            }
         }
 
         return make_response(response, 200)
 
     except Exception as e:
-        response['status'] = 'failed'
-        response['data'] = {
-            'message': str(e)
-        }
-
-        return make_response(response, 404)
+        response = {
+            "err": "invalid machineID or machineID not found in db, " + str(e), "status": "failed"}
+        return make_response(response, 400)
 
 
-@app.route('/laundry/machine/editDuration', methods=['PUT'])
-@cross_origin(supports_credentials=True)
-def change_duration():
+@ laundry_api.route('/laundryMachines/location/<int:locationID>', methods=['GET'])
+@ cross_origin(supports_credentials=True)
+def laundry_by_location(locationID):
+    try:
+        DEFAULT_PROFILE_URI = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"
+        print("Just Sweep : " + str(SweepAll()))
+        pipeline = [
+            {'$match': {
+                'locationID': locationID
+            }
+            },
+            {'$lookup': {
+                'from': 'Profiles',
+                'localField': 'userID',
+                'foreignField': 'userID',
+                'as': 'profile'
+            }
+            }
+        ]
+
+        response = {"data": []}
+
+        for item in db.LaundryMachine.aggregate(pipeline):
+            # print(item["profile"])
+            if (len(item["profile"]) != 0):
+                item["userImage"] = item["profile"][0].get(
+                    "profilePictureUrl")
+            else:
+                item["userImage"] = DEFAULT_PROFILE_URI
+
+            del item["profile"]
+            response["data"].append(item)
+        response["status"] = "success"
+
+        return make_response(response, 200)
+
+    except Exception as e:
+        response = {"err": str(e), "status": "failed"}
+        return make_response(response, 400)
+
+
+@ laundry_api.route('/laundryMachines/duration', methods=['PUT'])
+@ cross_origin(supports_credentials=True)
+def laundry_machine_change_duration():
     try:
         data = request.get_json()
         # it is possible to change into JSON format, using request.json to check
@@ -389,42 +377,84 @@ def change_duration():
                          {'duration': duration}
                          }
 
-            result = db.LaundryMachine.update_one(myquery, data_body)
+            db.LaundryMachine.update_one(myquery, data_body)
 
-            response = {}
-            response["message"] = "Successfully Update the duration"
+            response = {
+                "status": "success",
+                "data": {}
+            }
             return make_response(response, 200)
         else:
-            response = {}
-            response["message"] = "Can only update duration when its In Use, cannot change Reserved Timing"
-            return make_response(response, 400)
+            raise Exception(
+                "Can only update duration when its In Use, cannot change Reserved Timing")
     except Exception as e:
-        return {"err": str(e)}, 400
+        response = {"err": str(e), "status": "failed"}
+        return make_response(response, 400)
 
 
-@app.route('/laundry/job', methods=['GET'])
-@cross_origin(supports_credentials=True)
-def laundry_machine_by_job():
-    try:
-        machineID = request.args.get('machineID')
-        userID = request.args.get('userID')
-        jobID = request.args.get('jobID')
+# =========================================================================================
+# ================================ OLD Endpoints ==========================================
+# =========================================================================================
 
-        if jobID:
-            laundry_info = dumps(db.LaundryJob.find_one({'jobID': int(jobID)}))
-            return make_response(laundry_info, 200)
-        elif userID:
-            laundry_info = dumps(db.LaundryJob.find({'userID': userID}))
-            return make_response(laundry_info, 200)
-        elif machineID:
-            laundry_info = dumps(db.LaundryJob.find({'machineID': machineID}))
-            return make_response(laundry_info, 200)
-        else:
-            return make_response(dumps(db.LaundryJob.find()), 200)
-    except Exception as e:
-        return make_response({"err": str(e)}, 400)
+# @laundry_api.route('/laundryMachines/startTime', methods=['GET'])
+# @cross_origin(supports_credentials=True)
+# def getStartTime():
+#     response = {}
+#     try:
+#         machineID = request.args.get('machineID')
+#         if machineID is None:
+#             raise Exception(
+#                 "machine ID not provided as URL parameter, use ?machineID=...")
 
+#         machine = db.LaundryMachine.find_one(
+#             {'machineID': machineID}, {'job': 1, 'startTime': 1})
 
-if __name__ == "__main__":
-    # app.run(debug = True)
-    app.run('0.0.0.0', port=8080)
+#         if machine.get("job") not in ['Reserved', 'In Use']:
+#             raise Exception(
+#                 "Only can fetch start time when the machine is Reserved or In Use")
+
+#         response['status'] = 'success'
+#         response['data'] = {
+#             'startTime': machine.get("startTime")
+#         }
+
+#         return make_response(response, 200)
+
+#     except Exception as e:
+#         response['status'] = 'failed'
+#         response['data'] = {
+#             'message': str(e)
+#         }
+
+#         return make_response(response, 404)
+
+# @ app.route('/location/<int:block_num>', methods=['GET'])
+# @ cross_origin(supports_credentials=True)
+# def location(block_num):
+#     try:
+#         block_info = dumps(db.LaundryLocation.find({'block': block_num}))
+#         return make_response(block_info, 200)
+#     except Exception as e:
+#         return make_response({"err": str(e)}, 400)
+
+# @laundry_api.route('/job', methods=['GET'])
+# @cross_origin(supports_credentials=True)
+# def laundry_machine_get_job():
+#     try:
+#         machineID = request.args.get('machineID')
+#         userID = request.args.get('userID')
+#         jobID = request.args.get('jobID')
+
+#         if jobID:
+#             laundry_info = dumps(db.LaundryJob.find_one({'jobID': int(jobID)}))
+#             return make_response(laundry_info, 200)
+#         elif userID:
+#             laundry_info = dumps(db.LaundryJob.find({'userID': userID}))
+#             return make_response(laundry_info, 200)
+#         elif machineID:
+#             laundry_info = dumps(db.LaundryJob.find({'machineID': machineID}))
+#             return make_response(laundry_info, 200)
+#         else:
+#             return make_response(dumps(db.LaundryJob.find()), 200)
+#     except Exception as e:
+#         return make_response({"err": str(e)}, 400)

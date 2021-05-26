@@ -11,6 +11,7 @@ sys.path.append("../db")
 
 scheduling_api = Blueprint("scheduling", __name__)
 
+
 def renameEvent(event):
     event['eventID'] = event.pop('_id')
     return event
@@ -103,6 +104,7 @@ def getAllPublicEvents():
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
 
+
 @scheduling_api.route('/event/public/afterTime/<startTime>', methods=["GET"])
 @cross_origin()
 def getPublicEventAfterTime(startTime):
@@ -136,7 +138,7 @@ def getEventsCCA(ccaID, referenceTime=0):
         endOfWeek = startOfWeek + 604800
         if referenceTime != 0:
             data = list(db.Events.find({"ccaID": ccaID, "startDateTime": {
-                                      "$gte": int(startOfWeek), "$lte": int(endOfWeek)}}))
+                "$gte": int(startOfWeek), "$lte": int(endOfWeek)}}))
         else:
             data = list(db.Events.find({"ccaID": ccaID}))
         response = {"status": "success", "data": data}
@@ -182,6 +184,7 @@ def getUserCCAs(userID):
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
 
+
 @scheduling_api.route("/user_event/<string:userID>/", methods=['GET'])
 @cross_origin()
 def getUserAttendanceAll(userID):
@@ -195,6 +198,7 @@ def getUserAttendanceAll(userID):
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
+
 
 @scheduling_api.route("/user_event/<userID>/<int:referenceTime>", methods=["GET"])
 @cross_origin()
@@ -254,7 +258,8 @@ def getCCAMembersName():
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response)
 
-@ app.route("/permissions/<userID>", methods=["GET"])
+
+@ scheduling_api.route("/permissions/<userID>", methods=["GET"])
 @ cross_origin()
 def getUserPermissions(userID):
     try:
@@ -265,13 +270,12 @@ def getUserPermissions(userID):
                      & {'userID', 'displayName'}} for profile in results]
         response = {"status": "success", "data": list(response)}
 
-
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
 
 
-@ app.route("/permissions", methods=['DELETE', 'POST'])
+@ scheduling_api.route("/permissions", methods=['DELETE', 'POST'])
 @ cross_origin()
 def addDeletePermissions():
     try:
@@ -563,8 +567,8 @@ def addNUSModsEvents():
                           for index, lesson in enumerate(output)]
 
         body = {"userID": userID,
-                "mods": indexed_output}  
-                         
+                "mods": indexed_output}
+
         db.NUSMods.update_one({"userID": userID}, {"$set": body}, upsert=True)
         print(oneModuleArray)
         data = list(db.NUSMods.find_one({"userID": userID}))
@@ -573,9 +577,3 @@ def addNUSModsEvents():
 
         return {"err": str(e), "status": "failed"}, 400
     return make_response(response, 200)
-
-
-
-if __name__ == "__main__":
-    # app.run(threaded=True, debug=True)
-    app.run('0.0.0.0', port=8080)
