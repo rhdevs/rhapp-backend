@@ -9,6 +9,7 @@ import jwt
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 from flask import Blueprint
+import sys
 sys.path.append("../db")
 
 social_api = Blueprint("social", __name__)
