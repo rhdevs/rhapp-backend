@@ -82,6 +82,27 @@ def profiles():
         return make_response(response, 400)
 
 
+@social_api.route("/profile")
+@cross_origin(supports_credentials=True)
+def users():
+    userIdList = request.args.getlist('userID')
+    try:
+        data = db.Profiles.find({"userID": {'$in': userIdList}}, {"_id": 0})
+        response = {
+            "data": list(data),
+            "status": "success"
+        }
+        return make_response(response, 400)
+    except Exception as e:
+        response = {
+            "status": "failed",
+            "err": str(e)
+        }
+        print(e)
+
+    return make_response(response, 200)
+
+
 @social_api.route("/profile/picture/<string:userID>", methods=['GET'])
 @cross_origin(supports_credentials=True)
 def getUserPicture(userID):
