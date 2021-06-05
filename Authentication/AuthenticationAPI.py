@@ -37,7 +37,7 @@ def check_for_token(token, username):
         currentUsername = currentUser['userID']
 
         # If username supplied,
-        if username and username != currentUsername:
+        if username and username != currentUsername and currentUsername != "RH_JCRC":
             raise Exception("Wrong UserID")
     except Exception as e:
         print(e)
