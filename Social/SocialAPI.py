@@ -10,11 +10,7 @@ import sys
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 from flask import Blueprint
-<<<<<<< Updated upstream
 import sys
-=======
-
->>>>>>> Stashed changes
 sys.path.append("../db")
 
 social_api = Blueprint("social", __name__)
