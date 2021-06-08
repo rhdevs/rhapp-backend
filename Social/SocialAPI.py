@@ -278,7 +278,7 @@ def userIDtoName(userID):
 def posts():
     try:
         if request.method == 'GET':
-            if request.args.get('postID') and request.args.get('userID'):
+            if request.args.get('postID') or request.args.get('userID'):
                 userID = request.args.get("userID")
                 postID = request.args.get("postID")
 
