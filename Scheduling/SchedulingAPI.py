@@ -36,7 +36,7 @@ def getUserTimetable(userID):
     return make_response(response, 200)
 
 
-@scheduling_api.route('/event/', methods=["GET"])
+@scheduling_api.route('/event', methods=["GET"])
 @cross_origin()
 def getAllEvents():
     try:
@@ -47,7 +47,7 @@ def getAllEvents():
     return make_response(response, 200)
 
 
-@scheduling_api.route('/event/private/', methods=["GET"])
+@scheduling_api.route('/event/private', methods=["GET"])
 @cross_origin()
 def getAllPrivateEvents():
     try:
@@ -91,7 +91,7 @@ def getPublicEventsPagination(pagination, startTime=0):
     return make_response(response, 200)
 
 
-@scheduling_api.route('/event/public/', methods=["GET"])
+@scheduling_api.route('/event/public', methods=["GET"])
 @cross_origin()
 def getAllPublicEvents():
     try:
@@ -117,11 +117,11 @@ def getPublicEventAfterTime(startTime):
     return make_response(response, 200)
 
 
-@scheduling_api.route('/cca/', methods=["GET"])
+@scheduling_api.route('/cca', methods=["GET"])
 @cross_origin()
 def getAllCCA():
     try:
-        data = list(db.CCA.find())
+        data = list(db.CCA.find({}, {'_id': 0}))
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
@@ -165,7 +165,7 @@ def getEventsDetails(eventID):
 @cross_origin()
 def getCCADetails(ccaID):
     try:
-        data = list(db.CCA.find({"ccaID": ccaID}))
+        data = list(db.CCA.find({"ccaID": ccaID}, {'_id': 0}))
         response = {"status": "success", "data": data}
     except Exception as e:
         return {"err": str(e), "status": "failed"}, 400
