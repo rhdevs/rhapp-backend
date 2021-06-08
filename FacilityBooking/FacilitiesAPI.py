@@ -120,6 +120,11 @@ def add_booking():
         db.Bookings.insert_one(formData)
         response = {"status": "success"}
 
+        # Logging
+        formData["action"] = "Add Booking"
+        formData["timeStamp"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        db.BookingLogs.insert_one(formData)
+
     except Exception as e:
         print(e)
         return {"err": str(e), "status": "failed"}, 400
@@ -158,6 +163,12 @@ def edit_booking(bookingID):
         db.Bookings.update_one({"bookingID": int(bookingID)}, {
             "$set": request.get_json()})
 
+        # Logging
+        formData["action"] = "Edit Booking"
+        formData["timeStamp"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        formData["bookingID"] = bookingID
+        db.BookingLogs.insert_one(formData)
+
         response = {"status": "success"}
     except Exception as e:
         print(e)
@@ -177,6 +188,13 @@ def delete_booking(bookingID):
             raise Exception("Booking not found")
 
         db.Bookings.delete_one({"bookingID": int(bookingID)})
+
+        # Logging
+        formData = {}
+        formData["action"] = "Delete Booking"
+        formData["timeStamp"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        formData["bookingID"] = bookingID
+        db.BookingLogs.insert_one(formData)
 
         response = {"status": "success"}
     except Exception as e:
