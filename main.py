@@ -1,5 +1,3 @@
-
-
 from flask import Flask
 from flask_cors import CORS, cross_origin
 import os
@@ -10,7 +8,7 @@ from FacilityBooking.FacilitiesAPI import facilities_api
 from Scheduling.SchedulingAPI import scheduling_api
 from Authentication.AuthenticationAPI import authentication_api
 from db import *
-from gevent.pywsgi import WSGIServer
+# from gevent.pywsgi import WSGIServer
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -32,5 +30,6 @@ def hello():
 
 
 if __name__ == "__main__":
-    http_server = WSGIServer(('', 8080), app)
-    http_server.serve_forever()
+    app.run("0.0.0.0", port=8080)
+    # http_server = WSGIServer(('', 8080), app)
+    # http_server.serve_forever()
