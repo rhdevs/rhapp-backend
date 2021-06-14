@@ -23,7 +23,47 @@ checks for and verifies token. Used in /protected
 """
 
 
-def check_for_token(token, username):
+def check_for_token(func):
+    def decorated(*args, **kwargs):
+        # extract token; for example here I assume it is passed as query parameter
+        token = request.args.get('token')
+
+        # if request does not have a token
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+
+        # verify the user
+        try:
+            data = jwt.decode(
+                token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
+            currentUser = db.User.find_one(
+                {'userID': data['userID'], 'passwordHash': data['passwordHash']})
+            currentUsername = currentUser['userID']
+        except Exception as e:
+            # print(e)
+            return jsonify({'message': 'Token is invalid'}), 403
+
+        # check if token has expired (compare time now with createdAt field in document + timedelta)
+        originalToken = db.Session.find_one(
+            {'userID': data['userID'], 'passwordHash': data['passwordHash']})
+        oldTime = originalToken['createdAt']
+        # print(datetime.datetime.now())
+        # print(oldTime)
+        if datetime.datetime.now() > oldTime + datetime.timedelta(weeks=2):
+            return jsonify({'message': 'Token has expired'}), 403
+        else:
+            # recreate session (with createdAt updated to now)
+            #db.Session.remove({'userID': { "$in": data['username']}, 'passwordHash': {"$in": data['passwordHash']}})
+            #db.Session.insert_one({'userID': data['username'], 'passwordHash': data['passwordHash'], 'createdAt': datetime.datetime.now()})
+            db.Session.update({'userID': data['userID'], 'passwordHash': data['passwordHash']}, {
+                              '$set': {'createdAt': datetime.datetime.now()}}, upsert=True)
+
+        return func(currentUser, *args, **kwargs)
+
+    return decorated
+
+
+def authenticate(token, username):
     # if request does not have a token
     if not token:
         return False

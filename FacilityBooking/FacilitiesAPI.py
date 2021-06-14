@@ -23,7 +23,7 @@ def root_route():
 def all_facilities():
     try:
         data = list(db.Facilities.find(
-            {}, {"_id": 0}).sort([("facilityName", 1)]))
+            {}, {"_id": 0}).sort("facilityID", 1))
         response = {"status": "success", "data": data}
     except Exception as e:
         print(e)
