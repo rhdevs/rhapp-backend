@@ -49,7 +49,7 @@ def check_for_token(func):
         oldTime = originalToken['createdAt']
         # print(datetime.datetime.now())
         # print(oldTime)
-        if datetime.datetime.now() > oldTime + datetime.timedelta(minutes=2):
+        if datetime.datetime.now() > oldTime + datetime.timedelta(weeks=2):
             return jsonify({'message': 'Token has expired'}), 403
         else:
             # recreate session (with createdAt updated to now)
