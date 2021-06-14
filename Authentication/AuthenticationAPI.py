@@ -176,7 +176,7 @@ Successful authentication will return the 200 status code below. Any other error
 
 
 @authentication_api.route('/protected', methods=['GET'])
-@check_for_token
+# @check_for_token
 def protected(currentUser):
     return jsonify({'message': 'Successfully logged in. Redirecting.'}), 200
 
